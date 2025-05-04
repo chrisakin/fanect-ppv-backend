@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import authController from '../controllers/authController';
 import verifyToken from '../middleware/authMiddleware';
+import { exchangeAuthCode } from '../middleware/googleTokenMiddleware';
 
 const router = Router();
 
@@ -9,6 +10,12 @@ router.post('/register', authController.register);
 
 // Login route
 router.post('/login', authController.login);
+
+router.post('/logout', verifyToken, authController.logout);
+
+router.post('/change-password', verifyToken, authController.changePassword);
+
+router.post('/google', exchangeAuthCode, authController.googleAuth);
 
 router.get('/profile', verifyToken, authController.getProfile);
 

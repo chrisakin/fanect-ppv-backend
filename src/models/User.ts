@@ -6,7 +6,7 @@ export interface IUser extends Document {
     password: string;
     firstName: string;
     lastName: string;
-    refreshToken: string;
+    refreshToken: string | undefined;
     resetPasswordToken: string | undefined;
     resetPasswordExpires: number | undefined;
     verificationCode: string | undefined;
