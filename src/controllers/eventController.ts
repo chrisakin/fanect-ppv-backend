@@ -47,6 +47,23 @@ class EventController {
         }
     }
 
+    async getUpcomingEvents(req: Request, res: Response) {
+        try {
+            const currentDate = new Date();
+    
+            // Fetch events with a date greater than or equal to the current date, sorted by date and time
+            const events = await Event.find({ 
+                createdBy: req.user.id, 
+                date: { $gte: currentDate } 
+            }).sort({ date: 1, time: 1 });
+    
+            res.status(200).json(events);
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ message: 'Server error' });
+        }
+    }
+
     async getEventById(req: Request, res: Response) {
         const { id } = req.params;
 

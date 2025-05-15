@@ -10,5 +10,6 @@ router.get('/', authMiddleware, EventController.getEvents);
 router.get('/:id', authMiddleware, EventController.getEventById);
 router.put('/:id',  uploadFields, authMiddleware, EventController.updateEvent);
 router.delete('/:id', authMiddleware, EventController.deleteEvent);
+router.get('/upcoming', authMiddleware, EventController.getUpcomingEvents);
 
 export default router;
