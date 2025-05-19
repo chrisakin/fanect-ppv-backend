@@ -5,6 +5,7 @@ import authRoutes from './routes/auth';
 import eventRoutes from './routes/event';
 import dotenv from 'dotenv';
 import cors from 'cors';
+import helmet from 'helmet';
 
 dotenv.config();
 
@@ -12,7 +13,7 @@ const app = express();
 app.use(cors());
 // Connect Database
 connectDB();
-
+app.use(helmet());
 // Middleware
 app.use(bodyParser.json());
 
