@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import Event from '../models/Event';
 import s3Service from '../services/s3Service';
+import { paginateAggregate, paginateFind } from '../services/paginationService';
 
 class EventController {
     async createEvent(req: Request, res: Response) {
@@ -44,8 +45,17 @@ class EventController {
 
     async getEvents(req: Request, res: Response) {
         try {
-            const events = await Event.find({ createdBy: req.user.id });
-            res.status(200).json(events);
+            const page = Number(req.query.page) || 1;
+            const limit = Number(req.query.limit) || 10;
+
+            const result = await paginateFind(
+                Event,
+                { createdBy: req.user.id },
+                { page, limit },
+                { __v: 0, createdBy: 0, createdAt: 0, updatedAt: 0, published: 0, status: 0 }
+            );
+
+            res.status(200).json({ message: 'Events gotten successfully', ...result });
         } catch (error) {
             console.error(error);
             res.status(500).json({ message: 'Server error' });
@@ -54,9 +64,11 @@ class EventController {
 
     async getUpcomingEvents(req: Request, res: Response) {
     try {
+        const page = Number(req.query.page) || 1;
+        const limit = Number(req.query.limit) || 10;
         const now = new Date();
 
-        const events = await Event.aggregate([
+        const pipeline = [
             {
                 $addFields: {
                     eventDateTime: {
@@ -83,7 +95,7 @@ class EventController {
                 }
             },
             {
-                $sort: { eventDateTime: 1 }
+                $sort: { eventDateTime: 1 as 1 }
             },
             {
                 $project: {
@@ -95,43 +107,55 @@ class EventController {
                     __v: 0
                 }
             }
-        ]);
+        ];
 
-        res.status(200).json(events);
+        const result = await paginateAggregate(Event, pipeline, { page, limit });
+
+        res.status(200).json({ message: 'Events gotten successfully', ...result });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error' });
     }
 }
 
-    async getLiveEvents(req: Request, res: Response) {
+   async getLiveEvents(req: Request, res: Response) {
         try {
+            const page = Number(req.query.page) || 1;
+            const limit = Number(req.query.limit) || 10;
             const currentDate = new Date();
-            // Assuming "live" means events happening today
             const startOfDay = new Date(currentDate.setHours(0, 0, 0, 0));
             const endOfDay = new Date(currentDate.setHours(23, 59, 59, 999));
 
-            const events = await Event.find({
-                date: { $gte: startOfDay, $lte: endOfDay },
-                published: true
-            }).sort({ date: 1, time: 1 }).select('-createdBy -createdAt -updatedAt -published -status');
+            const result = await paginateFind(
+                Event,
+                { date: { $gte: startOfDay, $lte: endOfDay }, published: true },
+                { page, limit },
+                { __v: 0, createdBy: 0, createdAt: 0, updatedAt: 0, published: 0, status: 0 },
+                { date: 1, time: 1 }
+            );
 
-            res.status(200).json(events);
+            res.status(200).json({ message: 'Events gotten successfully', ...result });
         } catch (error) {
             console.error(error);
             res.status(500).json({ message: 'Server error' });
         }
     }
 
-       async getPastEvents(req: Request, res: Response) {
+    async getPastEvents(req: Request, res: Response) {
         try {
+            const page = Number(req.query.page) || 1;
+            const limit = Number(req.query.limit) || 10;
             const currentDate = new Date();
-            const events = await Event.find({
-                date: { $lt: currentDate },
-                published: true
-            }).sort({ date: -1, time: -1 }).select('-createdBy -createdAt -updatedAt -published -status');
 
-            res.status(200).json(events);
+            const result = await paginateFind(
+                Event,
+                { date: { $lt: currentDate }, published: true },
+                { page, limit },
+                { __v: 0, createdBy: 0, createdAt: 0, updatedAt: 0, published: 0, status: 0 },
+                { date: -1, time: -1 }
+            );
+
+            res.status(200).json({ message: 'Events gotten successfully', ...result });
         } catch (error) {
             console.error(error);
             res.status(500).json({ message: 'Server error' });
@@ -146,7 +170,7 @@ class EventController {
             if (!event) {
                 return res.status(404).json({ message: 'Event not found' });
             }
-            res.status(200).json(event);
+            res.status(200).json({message: 'Events gotten successfully', event});
         } catch (error) {
             console.error(error);
             res.status(500).json({ message: 'Server error' });
@@ -197,8 +221,6 @@ class EventController {
             res.status(500).json({ message: 'Server error' });
         }
     }
-
-    // ...existing code...
 
     async publishEvent(req: Request, res: Response) {
         const { id } = req.params;
