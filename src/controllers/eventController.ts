@@ -61,7 +61,17 @@ class EventController {
                 $addFields: {
                     eventDateTime: {
                         $dateFromString: {
-                            dateString: { $concat: [ "$date", "T", "$time" ] }
+                            dateString: {
+                                $concat: [
+                                    { $dateToString: { format: "%Y-%m-%d", date: "$date" } },
+                                    "T",
+                                    { $cond: [
+                                        { $eq: [ { $type: "$time" }, "string" ] },
+                                        "$time",
+                                        { $dateToString: { format: "%H:%M", date: "$time" } }
+                                    ]}
+                                ]
+                            }
                         }
                     }
                 }
