@@ -84,6 +84,16 @@ class EventController {
             },
             {
                 $sort: { eventDateTime: 1 }
+            },
+            {
+                $project: {
+                    createdBy: 0,
+                    createdAt: 0,
+                    updatedAt: 0,
+                    published: 0,
+                    status: 0,
+                    __v: 0
+                }
             }
         ]);
 
@@ -104,7 +114,7 @@ class EventController {
             const events = await Event.find({
                 date: { $gte: startOfDay, $lte: endOfDay },
                 published: true
-            }).sort({ date: 1, time: 1 });
+            }).sort({ date: 1, time: 1 }).select('-createdBy -createdAt -updatedAt -published -status');
 
             res.status(200).json(events);
         } catch (error) {
@@ -119,7 +129,7 @@ class EventController {
             const events = await Event.find({
                 date: { $lt: currentDate },
                 published: true
-            }).sort({ date: -1, time: -1 });
+            }).sort({ date: -1, time: -1 }).select('-createdBy -createdAt -updatedAt -published -status');
 
             res.status(200).json(events);
         } catch (error) {
@@ -132,7 +142,7 @@ class EventController {
         const { id } = req.params;
 
         try {
-            const event = await Event.findById(id);
+            const event = await Event.findById(id).select('-createdBy -createdAt -updatedAt -published -status');
             if (!event) {
                 return res.status(404).json({ message: 'Event not found' });
             }
