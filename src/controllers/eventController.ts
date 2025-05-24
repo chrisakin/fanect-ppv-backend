@@ -8,6 +8,10 @@ class EventController {
         const userId = req.user.id;
 
         try {
+             const eventDateTime = new Date(`${date}T${time}`);
+            if (isNaN(eventDateTime.getTime()) || eventDateTime <= new Date()) {
+                return res.status(400).json({ message: 'Event date and time must be in the future' });
+            }
             const files = req.files as { [fieldname: string]: Express.Multer.File[] };
             const banner = files?.banner?.[0];
             const watermark = files?.watermark?.[0];
@@ -123,6 +127,14 @@ class EventController {
 
             if (event.createdBy.toString() !== req.user.id) {
                 return res.status(403).json({ message: 'Unauthorized' });
+            }
+
+            // Only check if date or time is being updated
+            const newDate = date || event.date;
+            const newTime = time || event.time;
+            const eventDateTime = new Date(`${newDate}T${newTime}`);
+            if (isNaN(eventDateTime.getTime()) || eventDateTime <= new Date()) {
+                return res.status(400).json({ message: 'Event date and time must be in the future' });
             }
 
             const files = req.files as { [fieldname: string]: Express.Multer.File[] };
