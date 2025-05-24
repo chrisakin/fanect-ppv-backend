@@ -78,7 +78,8 @@ class EventController {
             },
             {
                 $match: {
-                    eventDateTime: { $gt: now }
+                    eventDateTime: { $gt: now },
+                    published: true
                 }
             },
             {
@@ -101,7 +102,8 @@ class EventController {
             const endOfDay = new Date(currentDate.setHours(23, 59, 59, 999));
 
             const events = await Event.find({
-                date: { $gte: startOfDay, $lte: endOfDay }
+                date: { $gte: startOfDay, $lte: endOfDay },
+                published: true
             }).sort({ date: 1, time: 1 });
 
             res.status(200).json(events);
@@ -115,7 +117,8 @@ class EventController {
         try {
             const currentDate = new Date();
             const events = await Event.find({
-                date: { $lt: currentDate }
+                date: { $lt: currentDate },
+                published: true
             }).sort({ date: -1, time: -1 });
 
             res.status(200).json(events);
@@ -184,6 +187,56 @@ class EventController {
             res.status(500).json({ message: 'Server error' });
         }
     }
+
+    // ...existing code...
+
+    async publishEvent(req: Request, res: Response) {
+        const { id } = req.params;
+
+        try {
+            const event = await Event.findById(id);
+            if (!event) {
+                return res.status(404).json({ message: 'Event not found' });
+            }
+
+            if (event.createdBy.toString() !== req.user.id) {
+                return res.status(403).json({ message: 'Unauthorized' });
+            }
+
+            event.published = true;
+            await event.save();
+
+            res.status(200).json({ message: 'Event published successfully', event });
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ message: 'Server error' });
+        }
+    }
+
+    async unpublishEvent(req: Request, res: Response) {
+        const { id } = req.params;
+
+        try {
+            const event = await Event.findById(id);
+            if (!event) {
+                return res.status(404).json({ message: 'Event not found' });
+            }
+
+            if (event.createdBy.toString() !== req.user.id) {
+                return res.status(403).json({ message: 'Unauthorized' });
+            }
+
+            event.published = false;
+            await event.save();
+
+            res.status(200).json({ message: 'Event unpublished successfully', event });
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ message: 'Server error' });
+        }
+    }
+
+// ...existing code...
 
     async deleteEvent(req: Request, res: Response) {
         const { id } = req.params;
