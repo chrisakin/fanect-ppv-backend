@@ -1,12 +1,13 @@
 {
-  "name": "my-node-ts-project",
+  "name": "fanect-ppv",
   "version": "1.0.0",
-  "description": "A Node.js and TypeScript project with JWT authentication and MongoDB integration.",
+  "description": "A Node.js and TypeScript project for fanect ppv feature",
   "main": "src/server.ts",
   "scripts": {
-    "start": "ts-node src/server.ts",
-    "dev": "nodemon src/server.ts"
-  },
+  "build": "tsc",
+  "start": "node dist/server.js",
+  "dev": "nodemon src/server.ts"
+},
   "dependencies": {
     "@types/handlebars": "^4.0.40",
     "aws-sdk": "^2.1692.0",
