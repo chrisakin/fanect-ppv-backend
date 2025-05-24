@@ -8,6 +8,14 @@ export interface IEvent extends Document {
     bannerUrl: string;
     watermarkUrl: string;
     createdBy: mongoose.Types.ObjectId;
+    published: boolean
+    price: string;
+}
+
+export enum EventStatus {
+    UPCOMING = 'Upcoming',
+    LIVE = 'Live',
+    PAST = 'Past'
 }
 
 const EventSchema: Schema = new Schema(
@@ -17,7 +25,10 @@ const EventSchema: Schema = new Schema(
         time: { type: String, required: true },
         description: { type: String, required: true },
         bannerUrl: { type: String, required: true },
-        watermarkUrl: { type: String, required: true },
+        watermarkUrl: { type: String },
+        price: { type: String },
+        published: { type: Boolean, default: false },
+        status: { type: String, default: EventStatus.UPCOMING },
         createdBy: { type: mongoose.Types.ObjectId, ref: 'User', required: true },
     },
     { timestamps: true }

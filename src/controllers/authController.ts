@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import EmailService from '../services/emailService';
 import { OAuth2Client } from 'google-auth-library';
+import { getOneUser } from '../services/userService';
 
 const client = new OAuth2Client(process.env.GOOGLE_LOGIN_CLIENT_ID);
 
@@ -216,8 +217,7 @@ class AuthController {
     async getProfile(req: Request, res: Response) {
         const userId = req.user.id;
         try {
-            const user = await User.findById(userId).select('-password -verificationCode -verificationCodeExpires -refreshToken -resetPasswordToken -resetPasswordExpires');
-            console.log(user)
+            const user = await getOneUser(userId, res);
             if (!user) {
                 return res.status(404).json({ message: 'User not found' });
             }

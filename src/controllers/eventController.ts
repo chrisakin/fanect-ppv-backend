@@ -26,6 +26,7 @@ class EventController {
                 description,
                 bannerUrl,
                 watermarkUrl,
+                price:'450000',
                 createdBy: userId,
             });
 
@@ -53,10 +54,41 @@ class EventController {
     
             // Fetch events with a date greater than or equal to the current date, sorted by date and time
             const events = await Event.find({ 
-                createdBy: req.user.id, 
                 date: { $gte: currentDate } 
             }).sort({ date: 1, time: 1 });
     
+            res.status(200).json(events);
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ message: 'Server error' });
+        }
+    }
+
+    async getLiveEvents(req: Request, res: Response) {
+        try {
+            const currentDate = new Date();
+            // Assuming "live" means events happening today
+            const startOfDay = new Date(currentDate.setHours(0, 0, 0, 0));
+            const endOfDay = new Date(currentDate.setHours(23, 59, 59, 999));
+
+            const events = await Event.find({
+                date: { $gte: startOfDay, $lte: endOfDay }
+            }).sort({ date: 1, time: 1 });
+
+            res.status(200).json(events);
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ message: 'Server error' });
+        }
+    }
+
+       async getPastEvents(req: Request, res: Response) {
+        try {
+            const currentDate = new Date();
+            const events = await Event.find({
+                date: { $lt: currentDate }
+            }).sort({ date: -1, time: -1 });
+
             res.status(200).json(events);
         } catch (error) {
             console.error(error);
@@ -81,7 +113,7 @@ class EventController {
 
     async updateEvent(req: Request, res: Response) {
         const { id } = req.params;
-        const { name, date, time, description } = req.body;
+        const { name, date, time, description, price } = req.body;
 
         try {
             const event = await Event.findById(id);
@@ -106,6 +138,7 @@ class EventController {
             event.date = date || event.date;
             event.time = time || event.time;
             event.description = description || event.description;
+            event.price = price || event.price
 
             await event.save();
             res.status(200).json({ message: 'Event updated successfully', event });

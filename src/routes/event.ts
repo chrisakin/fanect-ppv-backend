@@ -11,5 +11,7 @@ router.get('/:id', authMiddleware, EventController.getEventById);
 router.put('/:id',  uploadFields, authMiddleware, EventController.updateEvent);
 router.delete('/:id', authMiddleware, EventController.deleteEvent);
 router.get('/upcoming', authMiddleware, EventController.getUpcomingEvents);
+router.get('/live', authMiddleware, EventController.getLiveEvents);
+router.get('/past', authMiddleware, EventController.getPastEvents);
 
 export default router;
