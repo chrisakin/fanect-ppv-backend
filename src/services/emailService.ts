@@ -7,7 +7,7 @@ class EmailService {
     private client: postmark.ServerClient;
 
     constructor() {
-        const apiToken = process.env.POSTMARK_API_TOKEN || 'dc0b5523-a9e2-48a1-8855-77c59fc65d3e';
+        const apiToken = process.env.POSTMARK_API_TOKEN;
         console.log(apiToken)
         if (!apiToken) {
             throw new Error('POSTMARK_API_TOKEN is not set');
@@ -26,7 +26,7 @@ class EmailService {
         const html = await this.compileTemplate(templateName, templateData);
 
         await this.client.sendEmail({
-            From: process.env.EMAIL_FROM || 'support@fanect.com',
+            From: process.env.EMAIL_FROM as string,
             To: to,
             Subject: subject,
             HtmlBody: html,

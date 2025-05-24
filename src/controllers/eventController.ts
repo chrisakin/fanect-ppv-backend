@@ -161,7 +161,7 @@ class EventController {
                 return res.status(403).json({ message: 'Unauthorized' });
             }
 
-            await event.remove();
+            await event.deleteOne();
             res.status(200).json({ message: 'Event deleted successfully' });
         } catch (error) {
             console.error(error);

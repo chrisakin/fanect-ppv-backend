@@ -126,8 +126,8 @@ class AuthController {
             user.verificationCode = undefined;
             user.verificationCodeExpires = undefined;
 
-            const accessToken = this.generateAccessToken(user._id);
-            const refreshToken = this.generateRefreshToken(user._id);
+            const accessToken = this.generateAccessToken(((user._id as string).toString()));
+            const refreshToken = this.generateRefreshToken(((user._id as string).toString()));
 
             user.refreshToken = refreshToken;
             await user.save();
@@ -179,8 +179,8 @@ class AuthController {
             return res.status(400).json({ message: 'User is not verified' });
             }
 
-            const accessToken = this.generateAccessToken(user._id);
-            const refreshToken = this.generateRefreshToken(user._id);
+            const accessToken = this.generateAccessToken(((user._id as string).toString()));
+            const refreshToken = this.generateRefreshToken(((user._id as string).toString()));
 
             // Optionally store the refresh token in the database
             user.refreshToken = refreshToken;
@@ -207,7 +207,7 @@ class AuthController {
                 return res.status(403).json({ message: 'Invalid refresh token' });
             }
 
-            const newAccessToken = this.generateAccessToken(user._id);
+            const newAccessToken = this.generateAccessToken((user._id as string).toString());
             res.json({ accessToken: newAccessToken });
         } catch (error) {
             res.status(403).json({ message: 'Invalid or expired refresh token' });
@@ -324,8 +324,8 @@ class AuthController {
             }
             // Generate JWT tokens
             console.log(user._id)
-            const accessToken = this.generateAccessToken(user._id);
-            const refreshToken = this.generateRefreshToken(user._id);
+            const accessToken = this.generateAccessToken((user._id as string).toString());
+            const refreshToken = this.generateRefreshToken((user._id as string).toString());
 
             // Optionally store the refresh token in the database
             user.refreshToken = refreshToken;
