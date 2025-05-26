@@ -198,13 +198,15 @@ class EventController {
             if (isNaN(eventDateTime.getTime()) || eventDateTime <= new Date()) {
                 return res.status(400).json({ message: 'Event date and time must be in the future' });
             }
-
+            let bannerKey
             const files = req.files as { [fieldname: string]: Express.Multer.File[] };
             if (files?.banner) {
+                 bannerKey =  await s3Service.getS3KeyFromUrl(event.bannerUrl)
                 event.bannerUrl = await s3Service.uploadFile(files.banner?.[0], 'event-banners');
             }
-
+            let watermarkKey
             if (files?.watermark) {
+                watermarkKey = await s3Service.getS3KeyFromUrl(event.watermarkUrl)
                 event.watermarkUrl = await s3Service.uploadFile(files.watermark?.[0], 'event-watermarks');
             }
 
@@ -215,6 +217,12 @@ class EventController {
             event.price = price || event.price
 
             await event.save();
+            if(bannerKey) {
+            await s3Service.deleteFile(bannerKey)
+            }
+            if(watermarkKey) {
+            await s3Service.deleteFile(watermarkKey)
+            }
             res.status(200).json({ message: 'Event updated successfully', event });
         } catch (error) {
             console.error(error);
@@ -283,7 +291,13 @@ class EventController {
                 return res.status(403).json({ message: 'Unauthorized' });
             }
 
+            const bannerKey =  await s3Service.getS3KeyFromUrl(event.bannerUrl)
+            const watermarkKey = await s3Service.getS3KeyFromUrl(event.watermarkUrl)
+
             await event.deleteOne();
+
+            await  s3Service.deleteFile(bannerKey)
+            await s3Service.deleteFile(watermarkKey)
             res.status(200).json({ message: 'Event deleted successfully' });
         } catch (error) {
             console.error(error);

@@ -126,7 +126,7 @@ class AuthController {
             user.verificationCode = undefined;
             user.verificationCodeExpires = undefined;
 
-            const accessToken = this.generateAccessToken(((user._id as string).toString()));
+            const accessToken = this.generateAccessToken(((user._id as string).toString()), user.email);
             const refreshToken = this.generateRefreshToken(((user._id as string).toString()));
 
             user.refreshToken = refreshToken;
@@ -138,8 +138,8 @@ class AuthController {
         }
     }
 
-     private generateAccessToken(userId: string): string {
-        return jwt.sign({ id: userId }, process.env.JWT_SECRET || 'secret', { expiresIn: '1h' });
+     private generateAccessToken(userId: string, email: string): string {
+        return jwt.sign({ id: userId, email }, process.env.JWT_SECRET || 'secret', { expiresIn: '1h' });
     }
 
      private generateRefreshToken(userId: string): string {
@@ -179,7 +179,7 @@ class AuthController {
             return res.status(400).json({ message: 'User is not verified' });
             }
 
-            const accessToken = this.generateAccessToken(((user._id as string).toString()));
+            const accessToken = this.generateAccessToken(((user._id as string).toString()), user.email);
             const refreshToken = this.generateRefreshToken(((user._id as string).toString()));
 
             // Optionally store the refresh token in the database
@@ -207,7 +207,7 @@ class AuthController {
                 return res.status(403).json({ message: 'Invalid refresh token' });
             }
 
-            const newAccessToken = this.generateAccessToken((user._id as string).toString());
+            const newAccessToken = this.generateAccessToken((user._id as string).toString(), user.email);
             res.json({ accessToken: newAccessToken });
         } catch (error) {
             res.status(403).json({ message: 'Invalid or expired refresh token' });
@@ -324,7 +324,7 @@ class AuthController {
             }
             // Generate JWT tokens
             console.log(user._id)
-            const accessToken = this.generateAccessToken((user._id as string).toString());
+            const accessToken = this.generateAccessToken((user._id as string).toString(), user.email);
             const refreshToken = this.generateRefreshToken((user._id as string).toString());
 
             // Optionally store the refresh token in the database
