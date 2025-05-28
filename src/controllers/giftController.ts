@@ -32,9 +32,9 @@ class GiftController {
 
             let paymentVerified = false;
             if (paymentMethod === 'flutterwave') {
-                paymentVerified = await verifyFlutterwavePayment(paymentReference, totalAmount);
+                paymentVerified = await verifyFlutterwavePayment(paymentReference);
             } else if (paymentMethod === 'stripe') {
-                paymentVerified = await verifyStripePayment(paymentReference, totalAmount);
+                paymentVerified = await verifyStripePayment(paymentReference);
             } else {
                 await session.abortTransaction();
                 session.endSession();
