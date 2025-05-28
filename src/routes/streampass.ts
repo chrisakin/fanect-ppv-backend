@@ -13,6 +13,6 @@ router.get('/live', authMiddleware, StreampassController.getLiveTicketedEvents);
 router.post('/payments/stripe/create-checkout-session', authMiddleware, streampassController.createStripeCheckoutSession)
 router.post('/payments/flutterwave/initialize', authMiddleware, streampassController.flutterwaveInitialization)
 router.post('/payments/verify-payment', authMiddleware, StreampassController.buyStreampass)
-router.get('/streampass/:eventId', authMiddleware, streampassController.getUserStreampassForEvent);
+router.get('/get-one-event/:eventId', authMiddleware, streampassController.getUserStreampassForEvent);
 
 export default router;
