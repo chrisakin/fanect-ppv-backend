@@ -1,13 +1,14 @@
 import { Request, Response } from 'express';
 import Streampass from '../models/Streampass';
 import Event from '../models/Event';
-import { verifyFlutterwavePayment } from '../services/flutterwaveService';
-import { verifyStripePayment } from '../services/stripeService';
+import { flutterwaveInitialization, verifyFlutterwavePayment } from '../services/flutterwaveService';
+import { createStripeCheckoutSession, verifyStripePayment } from '../services/stripeService';
 import emailService from '../services/emailService';
 import { getOneUser } from '../services/userService';
 import mongoose from 'mongoose';
 import { paginateAggregate } from '../services/paginationService';
 import Stripe from 'stripe';
+import axios from 'axios';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
     apiVersion: '2025-04-30.basil',
@@ -16,19 +17,14 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
 
 class StreampassController {
     async buyStreampass(req: Request, res: Response) {
-        const userId = req.user.id;
-        const { eventId, paymentMethod, paymentReference } = req.body;
-
+        const { paymentMethod, paymentReference } = req.body;
         try {
-            const event = await Event.findById(eventId);
-            if (!event) return res.status(404).json({ message: 'Event not found' });
-
             // Verify payment
-            let paymentVerified = false;
+            let paymentVerified;
             if (paymentMethod === 'flutterwave') {
-                paymentVerified = await verifyFlutterwavePayment(paymentReference, Number(event.price));
+                paymentVerified = await verifyFlutterwavePayment(paymentReference );
             } else if (paymentMethod === 'stripe') {
-                paymentVerified = await verifyStripePayment(paymentReference, Number(event.price));
+                paymentVerified = await verifyStripePayment(paymentReference );
             } else {
                 return res.status(400).json({ message: 'Invalid payment method' });
             }
@@ -36,7 +32,14 @@ class StreampassController {
             if (!paymentVerified) {
                 return res.status(400).json({ message: 'Payment verification failed' });
             }
-
+            const {success, eventId, userId, amount} = paymentVerified
+            if(!success) return res.status(400).json({ message: 'Payment not verified' });
+            const verify = await Streampass.findOne({paymentMethod, paymentReference, event: eventId, user:userId})
+            if(verify) return res.status(201).json({ message: 'Streampass purchased successfully', streampass: verify });
+            const event = await Event.findById(eventId);
+            if (!event) return res.status(404).json({ message: 'Event not found' });
+            const expectedAmount = paymentMethod == 'stripe' ? Math.round(Number(event.price) * 100): event.price;
+            if(amount != expectedAmount) return res.status(400).json({ message: 'Payment Not verified. Please contact customer care.' });
             // Create streampass
             const streampass = await Streampass.create({
                 user: userId,
@@ -46,11 +49,9 @@ class StreampassController {
             });
 
             const user = await getOneUser(userId, res);
-
             if (!user || !user.email) {
                 return res.status(404).json({ message: 'User not found or email missing' });
             }
-
             // Send email to user
             await emailService.sendEmail(
             user.email,
@@ -110,7 +111,7 @@ class StreampassController {
                         newRoot: {
                             $mergeObjects: [
                                 "$event",
-                                { streampassId: "$_id", paymentMethod: "$paymentMethod", paymentReference: "$paymentReference" }
+                                { streampassId: "$_id", paymentMethod: "$paymentMethod", paymentReference: "$paymentReference", eventDateTime: "$eventDateTime", }
                             ]
                         }
                     }
@@ -277,43 +278,41 @@ class StreampassController {
 
         async createStripeCheckoutSession(req: Request, res: Response) {
         try {
-            const { eventId } = req.body;
+            const { eventId, currency } = req.body;
             const event = await Event.findById(eventId) as (typeof Event.prototype & { _id: mongoose.Types.ObjectId });
             if (!event) {
                 return res.status(404).json({ message: 'Event not found' });
             }
-
-            // You can add more metadata as needed
-            const session = await stripe.checkout.sessions.create({
-                payment_method_types: ['card'],
-                mode: 'payment',
-                line_items: [
-                    {
-                        price_data: {
-                            currency: 'usd',
-                            product_data: {
-                                name: event.name,
-                                description: event.description,
-                            },
-                            unit_amount: Math.round(Number(event.price) * 100), // price in cents
-                        },
-                        quantity: 1,
-                    },
-                ],
-                metadata: {
-                    eventId: event._id.toString(),
-                    userId: req.user.id,
-                },
-                success_url: `${process.env.FRONTEND_URL}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-                cancel_url: `${process.env.FRONTEND_URL}/payment-cancelled`,
-                customer_email: req.user.email, // optional, if you have the user's email
-            });
-
+            const user = {id: req.user.id, email: req.user.email}
+            const verifyStreamPass = await Streampass.findOne({event:eventId, user:req.user.id})
+            if(verifyStreamPass) {
+                return res.status(404).json({ message: 'You already have a streampass for this event' });
+            }
+            const session = await createStripeCheckoutSession(currency, event, user)
             res.status(200).json({ url: session.url });
         } catch (error) {
             console.error(error);
             res.status(500).json({ message: 'Stripe session creation failed' });
         }
+    }
+
+    async flutterwaveInitialization(req: Request, res: Response) {
+        try {
+           const { eventId, currency } = req.body;
+            const event = await Event.findById(eventId) as (typeof Event.prototype & { _id: mongoose.Types.ObjectId });
+            if (!event) {
+                return res.status(404).json({ message: 'Event not found' });
+            }
+             const user = {id: req.user.id, email: req.user.email, name: req.user.name}
+            const verifyStreamPass = await Streampass.findOne({event:eventId, user:req.user.id})
+            if(verifyStreamPass) {
+                return res.status(404).json({ message: 'You already have a streampass for this event' });
+            }
+             const response = await flutterwaveInitialization(event, currency, user)
+                res.status(200).json({ link: response.data.data.link });
+            } catch (error) {
+            
+            }
     }
 }
 

@@ -1,8 +1,9 @@
 import axios from 'axios';
+import { IEvent } from '../models/Event';
 
 const FLUTTERWAVE_SECRET_KEY = process.env.FLUTTERWAVE_SECRET_KEY;
 
-export async function verifyFlutterwavePayment(reference: string, amount: number): Promise<boolean> {
+export async function verifyFlutterwavePayment(reference: string): Promise<any> {
     try {
         const response = await axios.get(
             `https://api.flutterwave.com/v3/transactions/verify_by_reference?tx_ref=${reference}`,
@@ -19,13 +20,16 @@ export async function verifyFlutterwavePayment(reference: string, amount: number
         if (
             data.status === 'success' &&
             data.data &&
-            data.data.status === 'successful' &&
-            Number(data.data.amount) === Number(amount)
+            data.data.status === 'successful'
         ) {
-            return true;
+            const meta = data.data.meta;
+            const eventId = meta?.eventId;
+            const userId = meta?.userId;
+            const amount = Number(data.data.amount)
+            return { success: true, eventId, userId, amount };
         }
 
-        return false;
+        return { success: false };
     } catch (error) {
         if (axios.isAxiosError(error)) {
             console.error('Flutterwave verification error:', error.response?.data || error.message);
@@ -34,6 +38,30 @@ export async function verifyFlutterwavePayment(reference: string, amount: number
         } else {
             console.error('Flutterwave verification error:', error);
         }
-        return false;
+        return { success: false };
     }
+}
+
+export function generateTxRef(prefix = "FANECT"): string {
+  return `${prefix}_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
+}
+
+export async function flutterwaveInitialization(event: any, currency: string, user: any) {
+    const response = await axios.post('https://api.flutterwave.com/v3/payments', {
+        tx_ref: generateTxRef(),
+        amount: event.price,
+        currency: currency,
+        redirect_url: `${process.env.FRONTEND_URL}/flutterwave/payment-success`,
+        customer: {
+          email: user.email,
+          name: user.name,
+        },
+        meta: {
+            userId: user.id,
+            eventId: event._id.toString(),
+        }
+          }, {
+        headers: { Authorization: `Bearer ${FLUTTERWAVE_SECRET_KEY}` }
+    });
+    return response
 }
