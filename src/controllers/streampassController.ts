@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import Streampass from '../models/Streampass';
-import Event from '../models/Event';
+import Event, { EventStatus } from '../models/Event';
 import { flutterwaveInitialization, verifyFlutterwavePayment } from '../services/flutterwaveService';
 import { createStripeCheckoutSession, verifyStripePayment } from '../services/stripeService';
 import emailService from '../services/emailService';
@@ -175,14 +175,14 @@ class StreampassController {
                         }
                     }
                 },
-                { $match: { eventDateTime: { $gte: startOfDay, $lte: endOfDay }, 'event.published': true } },
+                { $match: { 'event.status': EventStatus.LIVE, 'event.published': true } },
                 { $sort: { eventDateTime: 1 } },
                 {
                     $replaceRoot: {
                         newRoot: {
                             $mergeObjects: [
                                 "$event",
-                                { streampassId: "$_id", paymentMethod: "$paymentMethod", paymentReference: "$paymentReference" }
+                                { streampassId: "$_id", paymentMethod: "$paymentMethod", paymentReference: "$paymentReference", eventDateTime: "$eventDateTime" }
                             ]
                         }
                     }
@@ -244,7 +244,7 @@ class StreampassController {
                         }
                     }
                 },
-                { $match: { eventDateTime: { $lt: now }, 'event.published': true } },
+                { $match: { 'event.status': EventStatus.PAST, 'event.published': true } },
                 { $sort: { eventDateTime: -1 } },
                 {
                     $replaceRoot: {
@@ -314,6 +314,27 @@ class StreampassController {
             
             }
     }
+
+    async getUserStreampassForEvent(req: Request, res: Response) {
+    try {
+        const userId = req.user.id;
+        const { eventId } = req.params;
+
+        const streampass = await Streampass.findOne({ user: userId, event: eventId }).select('-paymentMethod -paymentReference -createdAt -user')
+            .populate({
+                path: 'event',
+                select: '-createdBy -createdAt -updatedAt -published -status -__v'
+            })
+        if (!streampass) {
+            return res.status(404).json({ message: 'Streampass not found for this user and event' });
+        }
+
+        res.status(200).json({ message: 'Streampass found', streampass });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+}
 }
 
 export default new StreampassController();

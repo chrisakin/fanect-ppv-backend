@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import Event from '../models/Event';
+import Event, { EventStatus } from '../models/Event';
 import s3Service from '../services/s3Service';
 import { paginateAggregate, paginateFind } from '../services/paginationService';
 
@@ -122,13 +122,10 @@ class EventController {
         try {
             const page = Number(req.query.page) || 1;
             const limit = Number(req.query.limit) || 10;
-            const currentDate = new Date();
-            const startOfDay = new Date(currentDate.setHours(0, 0, 0, 0));
-            const endOfDay = new Date(currentDate.setHours(23, 59, 59, 999));
 
             const result = await paginateFind(
                 Event,
-                { date: { $gte: startOfDay, $lte: endOfDay }, published: true },
+                { status: EventStatus.LIVE, published: true },
                 { page, limit },
                 { __v: 0, createdBy: 0, createdAt: 0, updatedAt: 0, published: 0, status: 0 },
                 { date: 1, time: 1 }
@@ -145,11 +142,10 @@ class EventController {
         try {
             const page = Number(req.query.page) || 1;
             const limit = Number(req.query.limit) || 10;
-            const currentDate = new Date();
 
             const result = await paginateFind(
                 Event,
-                { date: { $lt: currentDate }, published: true },
+                { status: EventStatus.PAST, published: true },
                 { page, limit },
                 { __v: 0, createdBy: 0, createdAt: 0, updatedAt: 0, published: 0, status: 0 },
                 { date: -1, time: -1 }
