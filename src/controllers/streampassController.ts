@@ -111,7 +111,7 @@ class StreampassController {
                         newRoot: {
                             $mergeObjects: [
                                 "$event",
-                                { streampassId: "$_id", paymentMethod: "$paymentMethod", paymentReference: "$paymentReference", eventDateTime: "$eventDateTime", }
+                                { streampassId: "$_id", paymentMethod: "$paymentMethod", paymentReference: "$paymentReference", eventDateTime: "$eventDateTime" }
                             ]
                         }
                     }
