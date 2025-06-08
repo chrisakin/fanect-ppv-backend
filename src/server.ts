@@ -24,7 +24,7 @@ app.use(bodyParser.json());
 // Routes
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/events', eventRoutes);
-// app.use('/api/v1/gift', giftRoutes)
+app.use('/api/v1/gift', giftRoutes)
 app.use('/api/v1/streampass', streampassRoutes)
 app.use('/api/v1/notifications', fcmRoutes);
 

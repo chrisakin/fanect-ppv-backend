@@ -11,8 +11,8 @@ import emailService from '../services/emailService';
 class GiftController {
     async giftStreampass(req: Request, res: Response) {
         const senderId = req.user.id;
-        const { eventId, paymentMethod, paymentReference, emails } = req.body;
-
+        const { eventId, paymentMethod, paymentReference, email, firstName, lastName } = req.body;
+        const emails = Array.isArray(email) ? email : [email];
         if (!Array.isArray(emails) || emails.length === 0) {
             return res.status(400).json({ message: 'Emails are required' });
         }
@@ -80,7 +80,7 @@ class GiftController {
                     emails[i],
                     'Event Streampass',
                     'emailVerification',
-                    { code: streampasses[i] }
+                    { code: streampasses[i], _id: streampasses[i]._id, firstName, lastName, eventTitle: event.name }
                 );
             }
 

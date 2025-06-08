@@ -80,6 +80,9 @@ class AuthController {
             if (user.isVerified) {
                 return res.status(400).json({ message: 'User is already verified' });
             }
+            if(user.isDeleted) {
+                return res.status(400).json({ message: 'User account has been deleted. Kinldy contact support' });
+            }
     
             // Generate a new verification code
             const verificationCode = Math.floor(100000 + Math.random() * 900000).toString(); // Generate 6-digit code
@@ -112,6 +115,9 @@ class AuthController {
 
             if (!user) {
                 return res.status(400).json({ message: 'User not found' });
+            }
+            if(user.isDeleted) {
+                return res.status(400).json({ message: 'User account has been deleted. Kinldy contact support' });
             }
 
             if (user.isVerified) {
@@ -224,6 +230,9 @@ class AuthController {
             if (!user) {
                 return res.status(404).json({ message: 'User not found' });
             }
+            if(user.isDeleted) {
+                return res.status(400).json({ message: 'User account has been deleted. Kinldy contact support' });
+            }
             res.json(user);
         } catch (error) {
             console.log(error)
@@ -239,6 +248,9 @@ class AuthController {
         const user = await User.findById(userId);
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
+        }
+        if(user.isDeleted) {
+            return res.status(400).json({ message: 'User account has been deleted. Kinldy contact support' });
         }
 
         if (firstName) user.firstName = firstName;
@@ -265,6 +277,9 @@ class AuthController {
             const user = await User.findOne({ email });
             if (!user) {
                 return res.status(400).json({ message: 'User not found' });
+            }
+            if(user.isDeleted) {
+                return res.status(400).json({ message: 'User account has been deleted. Kinldy contact support' });
             }
 
             const resetToken = crypto.randomBytes(20).toString('hex');
@@ -298,6 +313,9 @@ class AuthController {
 
             if (!user) {
                 return res.status(400).json({ message: 'Password reset token is invalid or has expired' });
+            }
+            if(user.isDeleted) {
+                return res.status(400).json({ message: 'User account has been deleted. Kinldy contact support' });
             }
 
             const hashedPassword = await bcrypt.hash(password, 10);
@@ -346,6 +364,9 @@ class AuthController {
                  return res.status(400).json({ message: 'User not found, go and signup for an account' });
                 }
             }
+            if(user && user.isDeleted) {
+                return res.status(400).json({ message: 'User account has been deleted. Kinldy contact support' });
+            }
             
             if(user && user.isVerified === false) {
                 user.isVerified = true;
@@ -353,7 +374,6 @@ class AuthController {
                 user.verificationCodeExpires = undefined;
             }
             // Generate JWT tokens
-            console.log(user._id)
             const accessToken = this.generateAccessToken((user._id as string).toString(), user.email, user.firstName);
             const refreshToken = this.generateRefreshToken((user._id as string).toString());
 
@@ -375,6 +395,9 @@ class AuthController {
             if (!user) {
                 return res.status(404).json({ message: 'User not found' });
             }
+            if(user.isDeleted) {
+                return res.status(400).json({ message: 'User account has been deleted. Kinldy contact support' });
+            }
 
             user.refreshToken = undefined;
             await user.save();
@@ -393,6 +416,9 @@ class AuthController {
             const user = await User.findById(userId);
             if (!user) {
                 return res.status(404).json({ message: 'User not found' });
+            }
+            if(user.isDeleted) {
+                return res.status(400).json({ message: 'User account has been deleted. Kinldy contact support' });
             }
 
             const isMatch = await bcrypt.compare(oldPassword, user.password);
@@ -416,6 +442,9 @@ class AuthController {
         const user = await User.findById(userId);
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
+        }
+        if(user.isDeleted) {
+            return res.status(400).json({ message: 'User account has been deleted. Kinldy contact support' });
         }
 
         user.isDeleted = true;
