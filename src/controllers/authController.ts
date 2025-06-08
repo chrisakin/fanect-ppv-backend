@@ -161,6 +161,9 @@ class AuthController {
                 return res.status(400).json({ message: 'Invalid credentials' });
             }
 
+            if(user.isDeleted) {
+                return res.status(400).json({ message: 'User account has been deleted. Kinldy contact support' });
+            }
             if(user.isVerified === false) {
                 const verificationCode = Math.floor(100000 + Math.random() * 900000).toString(); // Generate 6-digit code
             const verificationCodeExpires = Date.now() + 3600000; // 1 hour
