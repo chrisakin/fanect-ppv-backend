@@ -228,6 +228,33 @@ class AuthController {
         }
     }
 
+    async updateProfile(req: Request, res: Response) {
+    const userId = req.user.id;
+    const { firstName, lastName, username, appNotifLiveStreamBegins, appNotifLiveStreamEnds, emailNotifLiveStreamBegins, emailNotifLiveStreamEnds } = req.body;
+
+    try {
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        if (firstName) user.firstName = firstName;
+        if (lastName) user.lastName = lastName;
+        if (username) user.username = username;
+        if(appNotifLiveStreamBegins) user.appNotifLiveStreamBegins = appNotifLiveStreamBegins;
+        if(appNotifLiveStreamEnds) user.appNotifLiveStreamEnds = appNotifLiveStreamEnds;
+        if(emailNotifLiveStreamBegins) user.emailNotifLiveStreamBegins = emailNotifLiveStreamBegins;
+        if(emailNotifLiveStreamEnds) user.emailNotifLiveStreamEnds = emailNotifLiveStreamEnds;
+
+        await user.save();
+
+        res.status(200).json({ message: 'Profile updated successfully', user });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+}
+
     async forgotPassword(req: Request, res: Response) {
         const { email } = req.body;
 
@@ -379,6 +406,23 @@ class AuthController {
             res.status(500).json({ message: 'Server error' });
         }
     }
+
+    async deleteAccount(req: Request, res: Response) {
+    const userId = req.user.id;
+    try {
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        user.isDeleted = true;
+        await user.save();
+
+        res.status(200).json({ message: 'Account deleted successfully (soft delete)' });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error' });
+    }
+}
 }
 
 export default new AuthController();

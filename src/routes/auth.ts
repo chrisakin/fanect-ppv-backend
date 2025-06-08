@@ -19,6 +19,8 @@ router.post('/google', exchangeAuthCode, authController.googleAuth);
 
 router.get('/profile', verifyToken, authController.getProfile);
 
+router.put('/profile', verifyToken, authController.updateProfile);
+
 router.post('/refresh-token', authController.refreshToken);
 
 // Verify Email route
@@ -28,5 +30,7 @@ router.post('/resend-otp', authController.resendOtp);
 // Reset password route
 router.post('/forgot-password', authController.forgotPassword);
 router.post('/reset/:token', authController.resetPassword);
+// In your auth routes file
+router.delete('/delete-account', verifyToken, authController.deleteAccount);
 
 export default router;

@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import Streampass from '../models/Streampass';
 import Event, { EventStatus } from '../models/Event';
-import { flutterwaveInitialization, verifyFlutterwavePayment } from '../services/flutterwaveService';
+import { flutterwaveInitialization, getAllBanks, resolveBankAccount, verifyFlutterwavePayment } from '../services/flutterwaveService';
 import { createStripeCheckoutSession, verifyStripePayment } from '../services/stripeService';
 import emailService from '../services/emailService';
 import { getOneUser } from '../services/userService';
@@ -335,6 +335,29 @@ class StreampassController {
         res.status(500).json({ message: 'Server error' });
     }
 }
+
+async getBanks(req: Request, res: Response) {
+        try {
+            const country = req.query.country as string || 'NG';
+            const data = await getAllBanks(country);
+            res.status(200).json({ banks: data.data });
+        } catch (error) {
+            res.status(500).json({ message: 'Unable to fetch banks' });
+        }
+    }
+
+    async resolveAccount(req: Request, res: Response) {
+        try {
+            const { account_number, bank_code } = req.body;
+            if (!account_number || !bank_code) {
+                return res.status(400).json({ message: 'account_number and bank_code are required' });
+            }
+            const data = await resolveBankAccount(account_number, bank_code);
+            res.status(200).json({ account: data.data });
+        } catch (error) {
+            res.status(500).json({ message: 'Unable to resolve bank account' });
+        }
+    }
 }
 
 export default new StreampassController();

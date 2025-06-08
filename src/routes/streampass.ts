@@ -14,5 +14,7 @@ router.post('/payments/stripe/create-checkout-session', authMiddleware, streampa
 router.post('/payments/flutterwave/initialize', authMiddleware, streampassController.flutterwaveInitialization)
 router.post('/payments/verify-payment', authMiddleware, StreampassController.buyStreampass)
 router.get('/get-one-event/:eventId', authMiddleware, streampassController.getUserStreampassForEvent);
+router.get('/banks', authMiddleware, StreampassController.getBanks);
+router.post('/resolve-account', authMiddleware, StreampassController.resolveAccount);
 
 export default router;

@@ -65,3 +65,49 @@ export async function flutterwaveInitialization(event: any, currency: string, us
     });
     return response
 }
+
+export async function getAllBanks(country: string = 'NG') {
+    try {
+        const response = await axios.get(
+            `https://api.flutterwave.com/v3/banks/${country}`,
+            {
+                headers: {
+                    Authorization: `Bearer ${FLUTTERWAVE_SECRET_KEY}`,
+                },
+            }
+        );
+        return response.data; // Contains array of banks
+    } catch (error) {
+        if (axios.isAxiosError(error)) {
+            console.error('Flutterwave getAllBanks error:', error.response?.data || error.message);
+        } else {
+            console.error('Flutterwave getAllBanks error:', error);
+        }
+        throw new Error('Unable to fetch banks');
+    }
+}
+
+export async function resolveBankAccount(account_number: string, bank_code: string) {
+    try {
+        const response = await axios.get(
+            `https://api.flutterwave.com/v3/accounts/resolve`,
+            {
+                params: {
+                    account_number,
+                    account_bank: bank_code,
+                },
+                headers: {
+                    Authorization: `Bearer ${FLUTTERWAVE_SECRET_KEY}`,
+                },
+            }
+        );
+        return response.data;
+    } catch (error) {
+        if (axios.isAxiosError(error)) {
+            console.error('Flutterwave resolveBankAccount error:', error.response?.data || error.message);
+        } else {
+            console.error('Flutterwave resolveBankAccount error:', error);
+        }
+        throw new Error('Unable to resolve bank account');
+    }
+}

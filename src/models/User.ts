@@ -11,7 +11,13 @@ export interface IUser extends Document {
     resetPasswordExpires: number | undefined;
     verificationCode: string | undefined;
     verificationCodeExpires: number | undefined;
-    isVerified: boolean
+    isVerified: boolean;
+    appNotifLiveStreamBegins: boolean;
+    appNotifLiveStreamEnds: boolean;
+    emailNotifLiveStreamBegins: boolean;
+    emailNotifLiveStreamEnds: boolean;
+    deviceTokens: string[];
+    isDeleted?: boolean;
 }
 
 const UserSchema: Schema = new Schema({
@@ -25,7 +31,13 @@ const UserSchema: Schema = new Schema({
     resetPasswordExpires: { type: Number, default: 0 },
     verificationCode: { type: String, default: '' },
     verificationCodeExpires: { type: Number, default: 0 },
-    isVerified: { type: Boolean, default: false }
+    isVerified: { type: Boolean, default: false },
+    appNotifLiveStreamBegins: { type: Boolean, default: true },
+    appNotifLiveStreamEnds: { type: Boolean, default: true },
+    emailNotifLiveStreamBegins: { type: Boolean, default: true },
+    emailNotifLiveStreamEnds: { type: Boolean, default: true },
+    deviceTokens: { type: [String], default: [] },
+    isDeleted: { type: Boolean, default: false }
 });
 
 export default mongoose.model<IUser>('User', UserSchema);
