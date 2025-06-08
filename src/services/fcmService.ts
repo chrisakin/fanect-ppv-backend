@@ -1,6 +1,7 @@
 import admin from 'firebase-admin';
 import Notification from '../models/Notifications';
 import User from '../models/User';
+import { paginateAggregate } from './paginationService';
 
 admin.initializeApp({
     credential: admin.credential.applicationDefault(), // or use cert if you have a service account JSON
@@ -57,15 +58,9 @@ export async function markNotificationAsRead(userId: string, notificationId: str
 }
 
 export async function getUserNotifications(userId: string, page = 1, limit = 10) {
-    const skip = (page - 1) * limit;
-    const [notifications, total] = await Promise.all([
-        Notification.find({ user: userId }).sort({ createdAt: -1 }).skip(skip).limit(limit),
-        Notification.countDocuments({ user: userId })
-    ]);
-    return {
-        notifications,
-        total,
-        page,
-        totalPages: Math.ceil(total / limit)
-    };
+    const pipeline: any = [
+        { $match: { user: userId } },
+        { $sort: { createdAt: -1 } }
+    ];
+    return paginateAggregate(Notification, pipeline, { page, limit });
 }
