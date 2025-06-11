@@ -6,6 +6,7 @@ import crypto from 'crypto';
 import EmailService from '../services/emailService';
 import { OAuth2Client } from 'google-auth-library';
 import { getOneUser } from '../services/userService';
+import { verifyAppleIdToken } from '../services/appleAuthService';
 
 const client = new OAuth2Client(process.env.GOOGLE_LOGIN_CLIENT_ID);
 
@@ -387,6 +388,51 @@ class AuthController {
             res.status(500).json({ message: 'Server error' });
         }
     }
+
+    async appleAuth(req: Request, res: Response) {
+    const { id_token, path } = req.body;
+    try {
+        const appleUser = await verifyAppleIdToken(id_token);
+        const email = appleUser.email;
+        const appleId = appleUser.sub;
+        let user = await User.findOne({ $or: [{ email }, { appleId }] });
+
+        if (!user) {
+            if (path === 'register') {
+                user = new User({
+                    username: email ? email.split('@')[0] : `apple_${appleId}`,
+                    email,
+                    appleId,
+                    isVerified: true,
+                });
+            } else {
+                return res.status(400).json({ message: 'User not found, please sign up.' });
+            }
+        }
+
+        if (user.isDeleted) {
+            return res.status(400).json({ message: 'User account has been deleted. Kindly contact support.' });
+        }
+
+        if (user.isVerified === false) {
+            user.isVerified = true;
+            user.verificationCode = undefined;
+            user.verificationCodeExpires = undefined;
+        }
+
+        const accessToken = this.generateAccessToken((user._id as string).toString(), user.email, user.firstName);
+        const refreshToken = this.generateRefreshToken((user._id as string).toString());
+
+        user.refreshToken = refreshToken;
+        user.appleId = appleId;
+        await user.save();
+
+        res.status(200).json({ message: 'Apple login successful', data: { accessToken, refreshToken } });
+    } catch (error) {
+        console.error(error);
+        res.status(400).json({ message: 'Apple authentication failed' });
+    }
+}
 
     async logout(req: Request, res: Response) {
         const userId = req.user.id;

@@ -18,6 +18,7 @@ export interface IUser extends Document {
     emailNotifLiveStreamEnds: boolean;
     deviceTokens: string[];
     isDeleted?: boolean;
+    appleId?: string;
 }
 
 const UserSchema: Schema = new Schema({
@@ -37,7 +38,8 @@ const UserSchema: Schema = new Schema({
     emailNotifLiveStreamBegins: { type: Boolean, default: true },
     emailNotifLiveStreamEnds: { type: Boolean, default: true },
     deviceTokens: { type: [String], default: [] },
-    isDeleted: { type: Boolean, default: false }
+    isDeleted: { type: Boolean, default: false },
+    appleId: { type: String }
 });
 
 export default mongoose.model<IUser>('User', UserSchema);

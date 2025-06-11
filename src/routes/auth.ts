@@ -16,6 +16,7 @@ router.post('/logout', verifyToken, authController.logout);
 router.post('/change-password', verifyToken, authController.changePassword);
 
 router.post('/google', exchangeAuthCode, authController.googleAuth);
+router.post('/apple', authController.appleAuth);
 
 router.get('/profile', verifyToken, authController.getProfile);
 
