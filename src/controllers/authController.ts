@@ -7,6 +7,7 @@ import EmailService from '../services/emailService';
 import { OAuth2Client } from 'google-auth-library';
 import { getOneUser } from '../services/userService';
 import { verifyAppleIdToken } from '../services/appleAuthService';
+import { app } from 'firebase-admin';
 
 const client = new OAuth2Client(process.env.GOOGLE_LOGIN_CLIENT_ID);
 
@@ -21,12 +22,20 @@ class AuthController {
         this.googleAuth = this.googleAuth.bind(this);
         this.getProfile = this.getProfile.bind(this);
         this.refreshToken = this.refreshToken.bind(this);
+        this.appleAuth = this.appleAuth.bind(this);
+        this.updateProfile = this.updateProfile.bind(this);
+        this.logout = this.logout.bind(this);
+        this.changePassword = this.changePassword.bind(this);
+        this.deleteAccount = this.deleteAccount.bind(this);
     }
 
     async register(req: Request, res: Response) {
         const { email, password, firstName, lastName } = req.body;
 
         try {
+            if(!email || !password || !firstName || !lastName) {
+                return res.status(400).json({ message: 'All fields are required' });
+            }
             const existingUser = await User.findOne({ email });
             if (existingUser) {
                 return res.status(400).json({ message: 'User already exists' });
@@ -390,9 +399,10 @@ class AuthController {
     }
 
     async appleAuth(req: Request, res: Response) {
-    const { id_token, path } = req.body;
+    const { id_token, path, firstName, lastName } = req.body;
     try {
         const appleUser = await verifyAppleIdToken(id_token);
+        console.log(appleUser);
         const email = appleUser.email;
         const appleId = appleUser.sub;
         let user = await User.findOne({ $or: [{ email }, { appleId }] });
@@ -403,6 +413,8 @@ class AuthController {
                     username: email ? email.split('@')[0] : `apple_${appleId}`,
                     email,
                     appleId,
+                    firstName,
+                    lastName,
                     isVerified: true,
                 });
             } else {
