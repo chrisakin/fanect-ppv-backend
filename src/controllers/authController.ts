@@ -351,7 +351,7 @@ class AuthController {
             // Check if the user already exists
             let user = await User.findOne({ email });
             if(!user) {
-                if (path === 'register') {
+                if (path === 'signup') {
                     // Create a new user if not found
                     user = new User({
                         username: email?.split('@')[0],
@@ -398,7 +398,7 @@ class AuthController {
         let user = await User.findOne({ $or: [{ email }, { appleId }] });
 
         if (!user) {
-            if (path === 'register') {
+            if (path === 'signup') {
                 user = new User({
                     username: email ? email.split('@')[0] : `apple_${appleId}`,
                     email,
