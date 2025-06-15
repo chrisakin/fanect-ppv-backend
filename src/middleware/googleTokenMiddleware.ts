@@ -9,8 +9,8 @@ export const exchangeAuthCode = async (req: Request, res: Response, next: NextFu
         }
 
         const getGoogleClientId = (platform: string) => {
-    if (platform === 'android') return process.env.GOOGLE_ANDROID_CLIENT_ID;
-    if (platform === 'ios') return process.env.GOOGLE_IOS_CLIENT_ID;
+    if (platform === 'android') return process.env.ANDROID_GOOGLE_LOGIN_CLIENT_ID;
+    if (platform === 'ios') return process.env.IOS_GOOGLE_LOGIN_CLIENT_ID;
     return process.env.GOOGLE_LOGIN_CLIENT_ID; // web
         };
 
