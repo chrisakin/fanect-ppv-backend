@@ -300,7 +300,7 @@ class AuthController {
             await EmailService.sendEmail(
                 user.email,
                 'Password Reset',
-                'passwordReset',
+                'passwordResetMobile',
                 { code: resetToken }
             );
             } else {
@@ -308,8 +308,7 @@ class AuthController {
             user.resetPasswordToken = resetToken;
             user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
             await user.save();
-
-            const resetUrl = `http://${req.headers.host}/reset/${resetToken}`;
+            const resetUrl = `${process.env.FRONTEND_URL}/reset/${resetToken}`;
             await EmailService.sendEmail(
                 user.email,
                 'Password Reset',
