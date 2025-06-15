@@ -1,17 +1,24 @@
 import axios from 'axios';
 import { Request, Response, NextFunction } from 'express';
+import { platform } from 'os';
 
 export const exchangeAuthCode = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const { code } = req.body; // Extract the authorization code from the request body
+        const { code, platform } = req.body; // Extract the authorization code from the request body
         if (!code) {
             return res.status(400).json({ message: 'Authorization code is required' });
         }
 
+        const getGoogleClientId = (platform: string) => {
+    if (platform === 'android') return process.env.GOOGLE_ANDROID_CLIENT_ID;
+    if (platform === 'ios') return process.env.GOOGLE_IOS_CLIENT_ID;
+    return process.env.GOOGLE_LOGIN_CLIENT_ID; // web
+        };
+
         // Exchange the authorization code for tokens
         const { data } = await axios.post('https://oauth2.googleapis.com/token', {
             code,
-            client_id: process.env.GOOGLE_LOGIN_CLIENT_ID,
+            client_id: getGoogleClientId(platform),
             client_secret: process.env.GOOGLE_LOGIN_CLIENT_SECRET,
             redirect_uri: 'postmessage',
             grant_type: 'authorization_code',
