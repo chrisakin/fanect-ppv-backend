@@ -1,6 +1,5 @@
 import axios from 'axios';
 import { Request, Response, NextFunction } from 'express';
-import { platform } from 'os';
 
 export const exchangeAuthCode = async (req: Request, res: Response, next: NextFunction) => {
     try {

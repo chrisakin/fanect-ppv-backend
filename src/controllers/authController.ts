@@ -281,7 +281,7 @@ class AuthController {
 }
 
     async forgotPassword(req: Request, res: Response) {
-        const { email } = req.body;
+        const { email, platform } = req.body;
 
         try {
             const user = await User.findOne({ email });
@@ -292,6 +292,18 @@ class AuthController {
                 return res.status(400).json({ message: 'User account has been deleted. Kinldy contact support' });
             }
 
+            if(platform == 'mobile') {
+            const resetToken = Math.floor(100000 + Math.random() * 900000).toString(); // Generate 6-digit code
+            user.resetPasswordToken = resetToken;
+            user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
+            await user.save();
+            await EmailService.sendEmail(
+                user.email,
+                'Password Reset',
+                'passwordReset',
+                { code: resetToken }
+            );
+            } else {
             const resetToken = crypto.randomBytes(20).toString('hex');
             user.resetPasswordToken = resetToken;
             user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
@@ -304,7 +316,7 @@ class AuthController {
                 'passwordReset',
                 { resetUrl }
             );
-
+            }
             res.status(200).json({ message: 'Password reset email sent' });
         } catch (error) {
             res.status(500).json({ message: 'Server error' });
