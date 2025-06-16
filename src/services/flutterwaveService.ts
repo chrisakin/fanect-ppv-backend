@@ -46,7 +46,7 @@ export function generateTxRef(prefix = "FANECT"): string {
   return `${prefix}_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
 }
 
-export async function flutterwaveInitialization(event: any, currency: string, user: any) {
+export async function flutterwaveInitialization(event: any, currency: string, user: any, friends: any) {
     const response = await axios.post('https://api.flutterwave.com/v3/payments', {
         tx_ref: generateTxRef(),
         amount: event.price,
@@ -59,6 +59,7 @@ export async function flutterwaveInitialization(event: any, currency: string, us
         meta: {
             userId: user.id,
             eventId: event._id.toString(),
+            friends: JSON.parse(friends)
         }
           }, {
         headers: { Authorization: `Bearer ${FLUTTERWAVE_SECRET_KEY}` }

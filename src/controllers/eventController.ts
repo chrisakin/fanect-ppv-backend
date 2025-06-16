@@ -5,9 +5,9 @@ import { paginateAggregate, paginateFind } from '../services/paginationService';
 
 class EventController {
     async createEvent(req: Request, res: Response) {
-        const { name, date, time, description } = req.body;
+        const { name, date, time, description, prices, haveBroadcastRoom, broadcastSoftware, scheduledTestDate } = req.body;
         const userId = req.user.id;
-
+        let price = JSON.parse(prices)
         try {
              const eventDateTime = new Date(`${date}T${time}`);
             if (isNaN(eventDateTime.getTime()) || eventDateTime <= new Date()) {
@@ -16,6 +16,7 @@ class EventController {
             const files = req.files as { [fieldname: string]: Express.Multer.File[] };
             const banner = files?.banner?.[0];
             const watermark = files?.watermark?.[0];
+            const trailer = files?.trailer?.[0];
 
             if (!banner || !watermark) {
                 return res.status(400).json({ message: 'Banner and watermark images are required' });
@@ -23,6 +24,7 @@ class EventController {
 
             const bannerUrl = await s3Service.uploadFile(banner, 'event-banners');
             const watermarkUrl = await s3Service.uploadFile(watermark, 'event-watermarks');
+            const trailerUrl = await s3Service.uploadFile(trailer, 'event-trailers')
 
             const event = new Event({
                 name,
@@ -31,7 +33,11 @@ class EventController {
                 description,
                 bannerUrl,
                 watermarkUrl,
-                price:'450000',
+                trailerUrl,
+                prices: price,
+                haveBroadcastRoom,
+                broadcastSoftware,
+                scheduledTestDate,
                 createdBy: userId,
             });
 
@@ -52,7 +58,8 @@ class EventController {
                 Event,
                 { createdBy: req.user.id },
                 { page, limit },
-                { __v: 0, createdBy: 0, createdAt: 0, updatedAt: 0, published: 0, status: 0 }
+                { __v: 0, createdBy: 0, createdAt: 0, updatedAt: 0, published: 0, status: 0 },
+                {createdAt: -1}
             );
 
             res.status(200).json({ message: 'Events gotten successfully', ...result });
@@ -66,9 +73,10 @@ class EventController {
     try {
         const page = Number(req.query.page) || 1;
         const limit = Number(req.query.limit) || 10;
+        const search = req.query.search as string | undefined;
         const now = new Date();
 
-        const pipeline = [
+        const pipeline: any[] = [
             {
                 $addFields: {
                     eventDateTime: {
@@ -93,10 +101,23 @@ class EventController {
                     eventDateTime: { $gt: now },
                     published: true
                 }
-            },
-            {
-                $sort: { eventDateTime: 1 as 1 }
-            },
+            }
+        ];
+
+        // Add search filter if provided
+        if (search && search.trim() !== '') {
+            pipeline.push({
+                $match: {
+                    $or: [
+                        { name: { $regex: search, $options: 'i' } },
+                        { description: { $regex: search, $options: 'i' } }
+                    ]
+                }
+            });
+        }
+
+        pipeline.push(
+            { $sort: { eventDateTime: 1 } },
             {
                 $project: {
                     createdBy: 0,
@@ -107,7 +128,7 @@ class EventController {
                     __v: 0
                 }
             }
-        ];
+        );
 
         const result = await paginateAggregate(Event, pipeline, { page, limit });
 
@@ -175,9 +196,10 @@ class EventController {
 
     async updateEvent(req: Request, res: Response) {
         const { id } = req.params;
-        const { name, date, time, description, price } = req.body;
-
+        const { name, date, time, description, prices, haveBroadcastRoom, broadcastSoftware, scheduledTestDate } = req.body;
+        const userId = req.user.id;
         try {
+            let price = JSON.parse(prices)
             const event = await Event.findById(id);
             if (!event) {
                 return res.status(404).json({ message: 'Event not found' });
@@ -205,12 +227,21 @@ class EventController {
                 watermarkKey = await s3Service.getS3KeyFromUrl(event.watermarkUrl)
                 event.watermarkUrl = await s3Service.uploadFile(files.watermark?.[0], 'event-watermarks');
             }
+             let trailerKey
+            if (files?.trailer) {
+                trailerKey = await s3Service.getS3KeyFromUrl(event.trailerUrl)
+                event.trailerUrl = await s3Service.uploadFile(files.trailerUrl?.[0], 'event-trailers');
+            }
 
             event.name = name || event.name;
             event.date = date || event.date;
             event.time = time || event.time;
             event.description = description || event.description;
-            event.price = price || event.price
+            event.prices = price || event.prices
+            event.haveBroadcastRoom = haveBroadcastRoom || event.haveBroadcastRoom
+            event.broadcastSoftware = broadcastSoftware || event.broadcastSoftware
+            event.scheduledTestDate = scheduledTestDate || event.scheduledTestDate
+            event.updatedBy = userId
 
             await event.save();
             if(bannerKey) {

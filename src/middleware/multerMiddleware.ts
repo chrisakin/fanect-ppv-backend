@@ -10,4 +10,5 @@ const upload = multer({
 export const uploadFields = upload.fields([
     { name: 'banner', maxCount: 1 },
     { name: 'watermark', maxCount: 1 },
+    { name: 'trailer', maxCount: 1 }
 ]);

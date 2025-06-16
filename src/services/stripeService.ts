@@ -30,7 +30,7 @@ export async function verifyStripePayment(reference: string): Promise<any> {
     }
 }
 
-export async function createStripeCheckoutSession(currency: string, event: any, user: any) {
+export async function createStripeCheckoutSession(currency: string, event: any, user: any, friends: any) {
     const session = await stripe.checkout.sessions.create({
         payment_method_types: ['card'],
             mode: 'payment',
@@ -50,6 +50,7 @@ export async function createStripeCheckoutSession(currency: string, event: any, 
                 metadata: {
                     eventId: event._id.toString(),
                     userId: user.id,
+                    friends: JSON.parse(friends)
                 },
                 success_url: `${process.env.FRONTEND_URL}/stripe/payment-success?session_id={CHECKOUT_SESSION_ID}`,
                 cancel_url: `${process.env.FRONTEND_URL}/stripe/payment-success`,

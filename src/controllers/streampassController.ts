@@ -38,8 +38,8 @@ class StreampassController {
             if(verify) return res.status(201).json({ message: 'Streampass purchased successfully', streampass: verify });
             const event = await Event.findById(eventId);
             if (!event) return res.status(404).json({ message: 'Event not found' });
-            const expectedAmount = paymentMethod == 'stripe' ? Math.round(Number(event.price) * 100): event.price;
-            if(amount != expectedAmount) return res.status(400).json({ message: 'Payment Not verified. Please contact customer care.' });
+            //const expectedAmount = paymentMethod == 'stripe' ? Math.round(Number(event.price) * 100): event.price;
+            //if(amount != expectedAmount) return res.status(400).json({ message: 'Payment Not verified. Please contact customer care.' });
             // Create streampass
             const streampass = await Streampass.create({
                 user: userId,
@@ -278,17 +278,17 @@ class StreampassController {
 
         async createStripeCheckoutSession(req: Request, res: Response) {
         try {
-            const { eventId, currency } = req.body;
+            const { eventId, currency, friends } = req.body;
             const event = await Event.findById(eventId) as (typeof Event.prototype & { _id: mongoose.Types.ObjectId });
             if (!event) {
                 return res.status(404).json({ message: 'Event not found' });
             }
             const user = {id: req.user.id, email: req.user.email}
             const verifyStreamPass = await Streampass.findOne({event:eventId, user:req.user.id})
-            if(verifyStreamPass) {
+            if(verifyStreamPass && (!friends || friends.length == 0)) {
                 return res.status(404).json({ message: 'You already have a streampass for this event' });
             }
-            const session = await createStripeCheckoutSession(currency, event, user)
+            const session = await createStripeCheckoutSession(currency, event, user, friends)
             res.status(200).json({ url: session.url });
         } catch (error) {
             console.error(error);
@@ -298,17 +298,17 @@ class StreampassController {
 
     async flutterwaveInitialization(req: Request, res: Response) {
         try {
-           const { eventId, currency } = req.body;
+           const { eventId, currency, friends } = req.body;
             const event = await Event.findById(eventId) as (typeof Event.prototype & { _id: mongoose.Types.ObjectId });
             if (!event) {
                 return res.status(404).json({ message: 'Event not found' });
             }
-             const user = {id: req.user.id, email: req.user.email, name: req.user.name}
+            const user = {id: req.user.id, email: req.user.email, name: req.user.name}
             const verifyStreamPass = await Streampass.findOne({event:eventId, user:req.user.id})
-            if(verifyStreamPass) {
+            if(verifyStreamPass && (!friends || friends.length == 0)) {
                 return res.status(404).json({ message: 'You already have a streampass for this event' });
             }
-             const response = await flutterwaveInitialization(event, currency, user)
+             const response = await flutterwaveInitialization(event, currency, user, friends)
                 res.status(200).json({ link: response.data.data.link });
             } catch (error) {
             

@@ -28,7 +28,7 @@ class GiftController {
                 return res.status(404).json({ message: 'Event not found' });
             }
 
-            const totalAmount = Number(event.price) * emails.length;
+            const totalAmount = Number(event.prices) * emails.length;
 
             let paymentVerified = false;
             if (paymentMethod === 'flutterwave') {

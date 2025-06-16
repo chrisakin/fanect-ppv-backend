@@ -14,14 +14,18 @@ export const exchangeAuthCode = async (req: Request, res: Response, next: NextFu
     return process.env.GOOGLE_LOGIN_CLIENT_ID; // web
         };
 
+        const payload: any = {
+        code,
+        client_id: getGoogleClientId(platform),
+        redirect_uri: 'postmessage',
+        grant_type: 'authorization_code',
+        };
+        if (platform != 'android' || platform != 'ios') {
+            payload.client_secret = process.env.GOOGLE_LOGIN_CLIENT_SECRET;
+        }
+
         // Exchange the authorization code for tokens
-        const { data } = await axios.post('https://oauth2.googleapis.com/token', {
-            code,
-            client_id: getGoogleClientId(platform),
-            client_secret: process.env.GOOGLE_LOGIN_CLIENT_SECRET,
-            redirect_uri: 'postmessage',
-            grant_type: 'authorization_code',
-        });
+        const { data } = await axios.post('https://oauth2.googleapis.com/token', payload);
 
         // Attach the tokens to the request object for further processing
         req.body.googleauth = data; // Contains access_token, id_token, etc.
