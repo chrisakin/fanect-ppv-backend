@@ -8,8 +8,7 @@ declare module 'express-serve-static-core' {
 }
 
 const getUsersCountry = (req: Request, res: Response, next: NextFunction) => {
-    const country = req.headers['X-User-Country'];
-
+    const country = req.headers['x-user-country'];
     try {
         if (typeof country === 'string' || typeof country === 'undefined') {
             req.country = country;
