@@ -6,7 +6,7 @@ export enum Currency {
     EUR = 'EUR',
     GBP = 'GBP',
     CAD = 'CAD',
-    CDS = 'CDS'
+    GHS = 'GHS'
 }
 
 export interface IPrice {

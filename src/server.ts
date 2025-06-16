@@ -7,6 +7,7 @@ import eventRoutes from './routes/event';
 import giftRoutes from './routes/gift';
 import streampassRoutes from './routes/streampass'
 import fcmRoutes from './routes/notification';
+import withdrawalRoutes from './routes/withdrawal'
 import dotenv from 'dotenv';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -28,6 +29,7 @@ app.use('/api/v1/events', getUsersCountry, eventRoutes);
 app.use('/api/v1/gift', getUsersCountry, giftRoutes)
 app.use('/api/v1/streampass',getUsersCountry, streampassRoutes)
 app.use('/api/v1/notifications', getUsersCountry, fcmRoutes);
+app.use('/api/v1/withdrawal', getUsersCountry, withdrawalRoutes)
 
 const PORT = process.env.PORT || 3000;
 

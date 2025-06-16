@@ -4,8 +4,8 @@ import * as fcmService from '../services/fcmService';
 class NotificationController {
     async saveToken(req: Request, res: Response) {
         const userId = req.user.id;
-        const { token } = req.body;
-        await fcmService.saveDeviceToken(userId, token);
+        const { fcmToken } = req.body;
+        await fcmService.saveDeviceToken(userId, fcmToken);
         res.json({ message: 'Token saved' });
     }
 

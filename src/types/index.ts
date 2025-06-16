@@ -14,3 +14,11 @@ export interface AuthResponse {
     token: string;
     user: User;
 }
+
+export const countryToCurrency: Record<string, string> = {
+      NG: 'NGN',
+      US: 'USD',
+      Canada: 'CAD',
+      Germany: 'EUR',
+      UK: 'GBP',
+    };

@@ -2,13 +2,14 @@ import admin from 'firebase-admin';
 import Notification from '../models/Notifications';
 import User from '../models/User';
 import { paginateAggregate } from './paginationService';
+import serviceAccount from '../config/fanect-ppv-df7d7-firebase-adminsdk-fbsvc-e76319a67d.json';
 
 admin.initializeApp({
-    credential: admin.credential.applicationDefault(), // or use cert if you have a service account JSON
+    credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
 });
 
 export async function saveDeviceToken(userId: string, token: string) {
-    await User.findByIdAndUpdate(userId, { $addToSet: { deviceTokens: token } });
+    return await User.findByIdAndUpdate(userId, { $addToSet: { deviceTokens: token } });
 }
 
 export async function verifyDeviceToken(token: string) {

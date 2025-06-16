@@ -1,7 +1,8 @@
 import { Request, Response } from 'express';
-import Event, { EventStatus } from '../models/Event';
+import Event, { Currency, EventStatus } from '../models/Event';
 import s3Service from '../services/s3Service';
 import { paginateAggregate, paginateFind } from '../services/paginationService';
+import { countryToCurrency } from '../types';
 
 class EventController {
     async createEvent(req: Request, res: Response) {
@@ -69,74 +70,164 @@ class EventController {
         }
     }
 
-    async getUpcomingEvents(req: Request, res: Response) {
-    try {
-        const page = Number(req.query.page) || 1;
-        const limit = Number(req.query.limit) || 10;
-        const search = req.query.search as string | undefined;
-        const now = new Date();
+//     async getUpcomingEvents(req: Request, res: Response) {
+//     try {
+//         const page = Number(req.query.page) || 1;
+//         const limit = Number(req.query.limit) || 10;
+//         const search = req.query.search as string | undefined;
+//         const now = new Date();
 
-        const pipeline: any[] = [
-            {
-                $addFields: {
-                    eventDateTime: {
-                        $dateFromString: {
-                            dateString: {
-                                $concat: [
-                                    { $dateToString: { format: "%Y-%m-%d", date: "$date" } },
-                                    "T",
-                                    { $cond: [
-                                        { $eq: [ { $type: "$time" }, "string" ] },
-                                        "$time",
-                                        { $dateToString: { format: "%H:%M", date: "$time" } }
-                                    ]}
-                                ]
-                            }
-                        }
-                    }
-                }
+//         const pipeline: any[] = [
+//             {
+//                 $addFields: {
+//                     eventDateTime: {
+//                         $dateFromString: {
+//                             dateString: {
+//                                 $concat: [
+//                                     { $dateToString: { format: "%Y-%m-%d", date: "$date" } },
+//                                     "T",
+//                                     { $cond: [
+//                                         { $eq: [ { $type: "$time" }, "string" ] },
+//                                         "$time",
+//                                         { $dateToString: { format: "%H:%M", date: "$time" } }
+//                                     ]}
+//                                 ]
+//                             }
+//                         }
+//                     }
+//                 }
+//             },
+//             {
+//                 $match: {
+//                     eventDateTime: { $gt: now },
+//                     published: true
+//                 }
+//             }
+//         ];
+
+//         // Add search filter if provided
+//         if (search && search.trim() !== '') {
+//             pipeline.push({
+//                 $match: {
+//                     $or: [
+//                         { name: { $regex: search, $options: 'i' } },
+//                         { description: { $regex: search, $options: 'i' } }
+//                     ]
+//                 }
+//             });
+//         }
+
+//         pipeline.push(
+//             { $sort: { eventDateTime: 1 } },
+//             {
+//                 $project: {
+//                     createdBy: 0,
+//                     createdAt: 0,
+//                     updatedAt: 0,
+//                     published: 0,
+//                     status: 0,
+//                     __v: 0
+//                 }
+//             }
+//         );
+
+//         const result = await paginateAggregate(Event, pipeline, { page, limit });
+
+//         res.status(200).json({ message: 'Events gotten successfully', ...result });
+//     } catch (error) {
+//         console.error(error);
+//         res.status(500).json({ message: 'Server error' });
+//     }
+// }
+
+async getUpcomingEvents(req: Request, res: Response) {
+  try {
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 10;
+    const search = req.query.search as string | undefined;
+    const now = new Date();
+    const userCountry = req.country || 'US'; // default fallback
+    const userCurrency = countryToCurrency[userCountry] || Currency.USD;
+
+    const pipeline: any[] = [
+      {
+        $addFields: {
+          eventDateTime: {
+            $dateFromString: {
+              dateString: {
+                $concat: [
+                  { $dateToString: { format: '%Y-%m-%d', date: '$date' } },
+                  'T',
+                  {
+                    $cond: [
+                      { $eq: [{ $type: '$time' }, 'string'] },
+                      '$time',
+                      { $dateToString: { format: '%H:%M', date: '$time' } },
+                    ],
+                  },
+                ],
+              },
             },
-            {
-                $match: {
-                    eventDateTime: { $gt: now },
-                    published: true
-                }
-            }
-        ];
+          },
+        },
+      },
+      {
+        $match: {
+          eventDateTime: { $gt: now },
+          published: true,
+        },
+      },
+    ];
 
-        // Add search filter if provided
-        if (search && search.trim() !== '') {
-            pipeline.push({
-                $match: {
-                    $or: [
-                        { name: { $regex: search, $options: 'i' } },
-                        { description: { $regex: search, $options: 'i' } }
-                    ]
-                }
-            });
-        }
-
-        pipeline.push(
-            { $sort: { eventDateTime: 1 } },
-            {
-                $project: {
-                    createdBy: 0,
-                    createdAt: 0,
-                    updatedAt: 0,
-                    published: 0,
-                    status: 0,
-                    __v: 0
-                }
-            }
-        );
-
-        const result = await paginateAggregate(Event, pipeline, { page, limit });
-
-        res.status(200).json({ message: 'Events gotten successfully', ...result });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Server error' });
+    if (search && search.trim() !== '') {
+      pipeline.push({
+        $match: {
+          $or: [
+            { name: { $regex: search, $options: 'i' } },
+            { description: { $regex: search, $options: 'i' } },
+          ],
+        },
+      });
     }
+
+    pipeline.push(
+      { $sort: { eventDateTime: 1 } },
+      {
+        $project: {
+          _id: 1,
+          name: 1,
+          description: 1,
+          eventDateTime: 1,
+          date: 1,
+          time: 1,
+          bannerUrl: 1,
+          location: 1,
+          price: {
+            $arrayElemAt: [
+              {
+                $filter: {
+                  input: '$prices',
+                  as: 'p',
+                  cond: { $eq: ['$$p.currency', userCurrency] },
+                },
+              },
+              0,
+            ],
+          },
+        },
+      }
+    );
+
+    const result = await paginateAggregate(Event, pipeline, { page, limit });
+
+    res.status(200).json({
+      message: 'Events gotten successfully',
+      ...result,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
 }
 
    async getLiveEvents(req: Request, res: Response) {
@@ -181,13 +272,21 @@ class EventController {
 
     async getEventById(req: Request, res: Response) {
         const { id } = req.params;
+         const userCountry = req.country || 'US'; // default fallback
+         const userCurrency = countryToCurrency[userCountry] || Currency.USD;
 
         try {
             const event = await Event.findById(id).select('-createdBy -createdAt -updatedAt -published -status');
             if (!event) {
                 return res.status(404).json({ message: 'Event not found' });
             }
-            res.status(200).json({message: 'Events gotten successfully', event});
+            const priceObj = event.prices.find((p: any) => p.currency === userCurrency || 'USD');
+            const eventObj = event.toObject() as Record<string, any>;
+            delete eventObj.prices;
+            res.status(200).json({message: 'Events gotten successfully', event: {
+                ...eventObj,
+                price: priceObj || null,
+            },});
         } catch (error) {
             console.error(error);
             res.status(500).json({ message: 'Server error' });
