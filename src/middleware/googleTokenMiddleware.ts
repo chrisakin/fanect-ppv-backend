@@ -20,10 +20,9 @@ export const exchangeAuthCode = async (req: Request, res: Response, next: NextFu
         redirect_uri: 'postmessage',
         grant_type: 'authorization_code',
         };
-        if (platform != 'android' || platform != 'ios') {
+       if (platform !== 'android' && platform !== 'ios') {
             payload.client_secret = process.env.GOOGLE_LOGIN_CLIENT_SECRET;
         }
-
         // Exchange the authorization code for tokens
         const { data } = await axios.post('https://oauth2.googleapis.com/token', payload);
 

@@ -10,6 +10,7 @@ import fcmRoutes from './routes/notification';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import helmet from 'helmet';
+import getUsersCountry from './middleware/locationMiddleware';
 
 dotenv.config();
 
@@ -22,11 +23,11 @@ app.use(helmet());
 app.use(bodyParser.json());
 
 // Routes
-app.use('/api/v1/auth', authRoutes);
-app.use('/api/v1/events', eventRoutes);
-app.use('/api/v1/gift', giftRoutes)
-app.use('/api/v1/streampass', streampassRoutes)
-app.use('/api/v1/notifications', fcmRoutes);
+app.use('/api/v1/auth', getUsersCountry, authRoutes);
+app.use('/api/v1/events', getUsersCountry, eventRoutes);
+app.use('/api/v1/gift', getUsersCountry, giftRoutes)
+app.use('/api/v1/streampass',getUsersCountry, streampassRoutes)
+app.use('/api/v1/notifications', getUsersCountry, fcmRoutes);
 
 const PORT = process.env.PORT || 3000;
 
