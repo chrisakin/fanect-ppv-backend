@@ -47,7 +47,6 @@ class StreampassController {
                 paymentMethod,
                 paymentReference
             });
-
             const user = await getOneUser(userId, res);
             if (!user || !user.email) {
                 return res.status(404).json({ message: 'User not found or email missing' });
@@ -56,8 +55,8 @@ class StreampassController {
             await emailService.sendEmail(
             user.email,
             'Event Streampass',
-            'emailVerification',
-            { code: streampass }
+            'eventStreamPass',
+            { eventName: event.name, userName: user.firstName, paymentReference: paymentReference, paymentDate: new Date(), amount: amount, year: new Date().getFullYear() }
             );
 
             res.status(201).json({ message: 'Streampass purchased successfully', streampass });

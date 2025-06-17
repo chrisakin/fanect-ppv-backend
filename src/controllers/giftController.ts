@@ -94,4 +94,28 @@ class GiftController {
     }
 }
 
+//Gift sender Recipt
+// {
+//   giverName: 'John Doe',
+//   receiverName: 'Jane Smith',
+//   eventName: 'Live Concert with Burna',
+//   eventDate: 'June 20, 2025',
+//   giftReference: 'FANGIFT20250612',
+//   paymentDate: 'June 15, 2025',
+//   amount: 2500,
+//   year: 2025
+// }
+
+// Gift Receiver Email
+// {
+//   giverName: 'John Doe',
+//   receiverName: 'Jane Smith',
+//   eventName: 'Live Concert with Burna',
+//   eventDate: 'June 20, 2025',
+//   giftReference: 'FANGIFT20250612',
+//   accessUrl: 'https://fanect.com/events/abc123',
+//   amount: 2500,
+//   year: 2025
+// }
+
 export default new GiftController();

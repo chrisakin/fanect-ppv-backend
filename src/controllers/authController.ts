@@ -67,7 +67,7 @@ class AuthController {
                 email,
                 'Email Verification',
                 'emailVerification',
-                { code: verificationCode }
+                { code: verificationCode, year: new Date().getFullYear()}
             );
 
             res.status(201).json({ message: 'Verification code sent to your email' });
@@ -107,7 +107,7 @@ class AuthController {
                 email,
                 'Resend Email Verification',
                 'emailVerification',
-                { code: verificationCode }
+                { code: verificationCode, year: new Date().getFullYear() }
             );
     
             res.status(200).json({ message: 'Verification code resent to your email' });
@@ -191,9 +191,9 @@ class AuthController {
             // Resend verification email
             await EmailService.sendEmail(
                 email,
-                'Resend Email Verification',
+                'Email Verification',
                 'emailVerification',
-                { code: verificationCode }
+                { code: verificationCode, year: new Date().getFullYear() }
             );
             return res.status(400).json({ message: 'User is not verified' });
             }
@@ -301,7 +301,7 @@ class AuthController {
                 user.email,
                 'Password Reset',
                 'passwordResetMobile',
-                { code: resetToken }
+                { code: resetToken, year: new Date().getFullYear() }
             );
             } else {
             const resetToken = crypto.randomBytes(20).toString('hex');
@@ -313,7 +313,7 @@ class AuthController {
                 user.email,
                 'Password Reset',
                 'passwordReset',
-                { resetUrl }
+                { resetUrl , year: new Date().getFullYear()}
             );
             }
             res.status(200).json({ message: 'Password reset email sent' });
