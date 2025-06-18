@@ -10,7 +10,16 @@ class EventController {
     async createEvent(req: Request, res: Response) {
         const { name, date, time, description, prices, haveBroadcastRoom, broadcastSoftware, scheduledTestDate } = req.body;
         const userId = req.user.id;
-        let price = JSON.parse(prices)
+        console.log(req.body)
+        let price
+        if(!prices ) {
+           return res.status(400).json({ message: 'At least one price is required' });
+        }
+        if (typeof prices === 'string') {
+        price = JSON.parse(prices);
+        } else {
+        price = prices
+        }
         try {
              const eventDateTime = new Date(`${date}T${time}`);
             if (isNaN(eventDateTime.getTime()) || eventDateTime <= new Date()) {
@@ -21,13 +30,22 @@ class EventController {
             const watermark = files?.watermark?.[0];
             const trailer = files?.trailer?.[0];
 
-            if (!banner || !watermark) {
+            if (!banner) {
                 return res.status(400).json({ message: 'Banner and watermark images are required' });
             }
-
-            const bannerUrl = await s3Service.uploadFile(banner, 'event-banners');
-            const watermarkUrl = await s3Service.uploadFile(watermark, 'event-watermarks');
-            const trailerUrl = await s3Service.uploadFile(trailer, 'event-trailers')
+            let bannerUrl
+            let watermarkUrl
+            let trailerUrl
+           if(banner) {
+             bannerUrl = await s3Service.uploadFile(banner, 'event-banners');
+           }
+           if(watermark) {
+             watermarkUrl = await s3Service.uploadFile(watermark, 'event-watermarks');
+           }
+            if(trailer) {
+                trailerUrl = await s3Service.uploadFile(trailer, 'event-trailers')
+            }
+            // Fix and check later
             //  const channel = await createChannel(name);
             // if (!channel || !channel.arn) {
             //     return res.status(500).json({ message: 'Failed to create event' });

@@ -66,7 +66,7 @@ const EventSchema: Schema = new Schema(
         date: { type: Date, required: true },
         time: { type: String, required: true },
         description: { type: String, required: true },
-        bannerUrl: { type: String, required: true },
+        bannerUrl: { type: String },
         watermarkUrl: { type: String },
         prices: { type: [PriceSchema], default: [] },
         published: { type: Boolean, default: false },
