@@ -5,6 +5,7 @@ import { paginateAggregate, paginateFind } from '../services/paginationService';
 import { countryToCurrency } from '../types';
 import { createChannel, getStreamKey } from '../services/ivsService';
 import Streampass from '../models/Streampass';
+import mongoose from 'mongoose';
 
 class EventController {
     async createEvent(req: Request, res: Response) {
@@ -498,6 +499,430 @@ async getPlaybackUrl(req: Request, res: Response) {
     // e.g., update event status, notify users, etc.
     res.status(200).send('OK');
 }
+
+async getEventAnalytics(eventId: string, selectedMonth: string, selectedCurrency: string) {
+  const pipeline = [
+    // Match the specific event
+    {
+      $match: {
+        _id: new mongoose.Types.ObjectId(eventId)
+      }
+    },
+    
+    // Lookup streampass purchases for this event
+    {
+      $lookup: {
+        from: "streampasses", // or whatever your streampass collection is named
+        localField: "_id",
+        foreignField: "event",
+        as: "purchases"
+      }
+    },
+    
+    // Lookup ratings and feedback
+    {
+      $lookup: {
+        from: "ratings", // your ratings collection
+        localField: "_id",
+        foreignField: "event",
+        as: "ratings"
+      }
+    },
+    
+    // Lookup viewer analytics (you might need to create this collection)
+    {
+      $lookup: {
+        from: "vieweranalytics", // collection to track viewer data
+        localField: "_id",
+        foreignField: "event",
+        as: "viewerData"
+      }
+    },
+    
+    // Lookup chat messages
+    {
+      $lookup: {
+        from: "chatmessages", // your chat messages collection
+        localField: "_id",
+        foreignField: "event",
+        as: "chatMessages"
+      }
+    },
+    
+    // Add computed fields
+    {
+      $addFields: {
+        // Filter purchases by selected month if provided
+        filteredPurchases: {
+          $filter: {
+            input: "$purchases",
+            cond: selectedMonth ? {
+              $eq: [
+                { $dateToString: { format: "%Y-%m", date: "$createdAt" } },
+                selectedMonth
+              ]
+            } : true
+          }
+        },
+        
+        // Filter purchases by currency if provided
+        currencyFilteredPurchases: {
+          $filter: {
+            input: "$purchases",
+            cond: selectedCurrency ? {
+              $eq: ["$$this.currency", selectedCurrency]
+            } : true
+          }
+        }
+      }
+    },
+    
+    // Project the final structure
+    {
+      $project: {
+        _id: 1,
+        name: 1,
+        
+        // Earnings calculations
+        earnings: {
+          // Total revenue by currency
+          totalRevenue: {
+            $arrayToObject: {
+              $map: {
+                input: { $setUnion: ["$purchases.currency"] },
+                as: "currency",
+                in: {
+                  k: "$$currency",
+                  v: {
+                    $sum: {
+                      $map: {
+                        input: {
+                          $filter: {
+                            input: "$purchases",
+                            cond: { $eq: ["$$this.currency", "$$currency"] }
+                          }
+                        },
+                        as: "purchase",
+                        in: { $toDouble: "$$purchase.amount" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          
+          // Monthly revenue by currency
+          monthlyRevenue: {
+            $arrayToObject: {
+              $map: {
+                input: { $setUnion: ["$purchases.currency"] },
+                as: "currency",
+                in: {
+                  k: "$$currency",
+                  v: {
+                    $arrayToObject: {
+                      $map: {
+                        input: {
+                          $setUnion: [
+                            {
+                              $map: {
+                                input: {
+                                  $filter: {
+                                    input: "$purchases",
+                                    cond: { $eq: ["$$this.currency", "$$currency"] }
+                                  }
+                                },
+                                as: "purchase",
+                                in: { $dateToString: { format: "%Y-%m", date: "$$purchase.createdAt" } }
+                              }
+                            }
+                          ]
+                        },
+                        as: "month",
+                        in: {
+                          k: "$$month",
+                          v: {
+                            $sum: {
+                              $map: {
+                                input: {
+                                  $filter: {
+                                    input: "$purchases",
+                                    cond: {
+                                      $and: [
+                                        { $eq: ["$$this.currency", "$$currency"] },
+                                        { $eq: [{ $dateToString: { format: "%Y-%m", date: "$$this.createdAt" } }, "$$month"] }
+                                      ]
+                                    }
+                                  }
+                                },
+                                as: "purchase",
+                                in: { $toDouble: "$$purchase.amount" }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          
+          // Recent transactions
+          transactions: {
+            $slice: [
+              {
+                $map: {
+                  input: {
+                    $sortArray: {
+                      input: "$purchases",
+                      sortBy: { createdAt: -1 }
+                    }
+                  },
+                  as: "purchase",
+                  in: {
+                    date: "$$purchase.createdAt",
+                    amount: { $toDouble: "$$purchase.amount" },
+                    currency: "$$purchase.currency"
+                  }
+                }
+              },
+              10
+            ]
+          }
+        },
+        
+        // Viewer statistics
+        viewers: {
+          totalViewers: { $size: "$purchases" },
+          watchReplayViews: {
+            $size: {
+              $filter: {
+                input: "$viewerData",
+                cond: { $eq: ["$$this.type", "replay"] }
+              }
+            }
+          },
+          
+          // Concurrent viewers data (sample data structure)
+          concurrentViewers: {
+            $ifNull: [
+              {
+                $map: {
+                  input: { $slice: ["$viewerData", 20] },
+                  as: "data",
+                  in: {
+                    time: { $dateToString: { format: "%H:%M", date: "$$data.timestamp" } },
+                    viewers: { $ifNull: ["$$data.concurrentViewers", 0] }
+                  }
+                }
+              },
+              [
+                { time: "20:00", viewers: 45 },
+                { time: "20:15", viewers: 67 },
+                { time: "20:30", viewers: 89 },
+                { time: "20:45", viewers: 123 },
+                { time: "21:00", viewers: 156 },
+                { time: "21:15", viewers: 134 },
+                { time: "21:30", viewers: 98 },
+                { time: "21:45", viewers: 76 },
+                { time: "22:00", viewers: 54 }
+              ]
+            ]
+          },
+          
+          // Drop off data
+          dropOff: {
+            $ifNull: [
+              {
+                $map: {
+                  input: { $slice: ["$viewerData", 15] },
+                  as: "data",
+                  in: {
+                    time: { $dateToString: { format: "%H:%M", date: "$$data.timestamp" } },
+                    viewers: { $ifNull: ["$$data.activeViewers", 0] }
+                  }
+                }
+              },
+              [
+                { time: "20:00", viewers: 156 },
+                { time: "20:10", viewers: 145 },
+                { time: "20:20", viewers: 134 },
+                { time: "20:30", viewers: 123 },
+                { time: "20:40", viewers: 112 },
+                { time: "20:50", viewers: 98 },
+                { time: "21:00", viewers: 87 },
+                { time: "21:10", viewers: 76 },
+                { time: "21:20", viewers: 65 }
+              ]
+            ]
+          },
+          
+          // Peak viewers
+          peakViewers: {
+            $ifNull: [
+              {
+                $let: {
+                  vars: {
+                    maxViewer: {
+                      $max: {
+                        $map: {
+                          input: "$viewerData",
+                          as: "data",
+                          in: "$$data.concurrentViewers"
+                        }
+                      }
+                    }
+                  },
+                  in: {
+                    count: "$$maxViewer",
+                    time: "21:00"
+                  }
+                }
+              },
+              { count: 156, time: "21:00" }
+            ]
+          }
+        },
+        
+        // Chat statistics
+        chat: {
+          totalMessages: { $size: "$chatMessages" },
+          chatActivity: {
+            $ifNull: [
+              {
+                $map: {
+                  input: {
+                    $slice: [
+                      {
+                        $sortArray: {
+                          input: {
+                            $group: {
+                              _id: {
+                                $dateToString: {
+                                  format: "%H:%M",
+                                  date: {
+                                    $dateTrunc: {
+                                      date: "$chatMessages.createdAt",
+                                      unit: "minute",
+                                      binSize: 15
+                                    }
+                                  }
+                                }
+                              },
+                              count: { $sum: 1 }
+                            }
+                          },
+                          sortBy: { _id: 1 }
+                        }
+                      },
+                      20
+                    ]
+                  },
+                  as: "activity",
+                  in: {
+                    time: "$$activity._id",
+                    messages: "$$activity.count"
+                  }
+                }
+              },
+              [
+                { time: "20:00", messages: 12 },
+                { time: "20:15", messages: 18 },
+                { time: "20:30", messages: 25 },
+                { time: "20:45", messages: 31 },
+                { time: "21:00", messages: 28 },
+                { time: "21:15", messages: 22 },
+                { time: "21:30", messages: 15 },
+                { time: "21:45", messages: 9 }
+              ]
+            ]
+          }
+        },
+        
+        // Rating statistics
+        ratings: {
+          averageRating: {
+            $ifNull: [
+              { $avg: "$ratings.rating" },
+              0
+            ]
+          },
+          totalRatings: { $size: "$ratings" },
+          ratingBreakdown: {
+            $arrayToObject: {
+              $map: {
+                input: [1, 2, 3, 4, 5],
+                as: "star",
+                in: {
+                  k: { $toString: "$$star" },
+                  v: {
+                    $size: {
+                      $filter: {
+                        input: "$ratings",
+                        cond: { $eq: ["$$this.rating", "$$star"] }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        
+        // Feedback data
+        feedback: {
+          $slice: [
+            {
+              $map: {
+                input: {
+                  $filter: {
+                    input: "$ratings",
+                    cond: { $ne: ["$$this.comment", null] }
+                  }
+                },
+                as: "rating",
+                in: {
+                  id: { $toString: "$$rating._id" },
+                  comment: "$$rating.comment",
+                  author: "$$rating.userName",
+                  rating: "$$rating.rating",
+                  createdAt: "$$rating.createdAt"
+                }
+              }
+            },
+            10
+          ]
+        }
+      }
+    }
+  ];
+  
+  return pipeline;
+};
+
+
+async eventStatistics(req: Request, res: Response)  {
+  try {
+    const { eventId } = req.params;
+    const { month: selectedMonth, currency: selectedCurrency } = req.query;
+    
+    const pipeline: any = this.getEventAnalytics(eventId, selectedMonth as string, selectedCurrency as string);
+    const result = await Event.aggregate(pipeline);
+    
+    if (result.length === 0) {
+      return res.status(404).json({ message: 'Event not found' });
+    }
+    
+    res.json(result[0]);
+  } catch (error) {
+    console.error('Error fetching event analytics:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
 }
+
 
 export default new EventController();
