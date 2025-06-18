@@ -28,9 +28,9 @@ class EventController {
             const bannerUrl = await s3Service.uploadFile(banner, 'event-banners');
             const watermarkUrl = await s3Service.uploadFile(watermark, 'event-watermarks');
             const trailerUrl = await s3Service.uploadFile(trailer, 'event-trailers')
-             const channel = await createChannel(name);
+            //  const channel = await createChannel(name);
             // if (!channel || !channel.arn) {
-            //     return res.status(500).json({ message: 'Failed to create broadcast channel' });
+            //     return res.status(500).json({ message: 'Failed to create event' });
             // }
             const event = new Event({
                 name,
@@ -45,8 +45,8 @@ class EventController {
                 broadcastSoftware,
                 scheduledTestDate,
                 createdBy: userId,
-                ivsChannelArn: channel && channel.arn,
-                ivsPlaybackUrl: channel && channel.playbackUrl, 
+                // ivsChannelArn: channel && channel.arn,
+                // ivsPlaybackUrl: channel && channel.playbackUrl, 
             });
 
             await event.save();
