@@ -3,6 +3,8 @@ import Event, { Currency, EventStatus } from '../models/Event';
 import s3Service from '../services/s3Service';
 import { paginateAggregate, paginateFind } from '../services/paginationService';
 import { countryToCurrency } from '../types';
+import { createChannel, getStreamKey } from '../services/ivsService';
+import Streampass from '../models/Streampass';
 
 class EventController {
     async createEvent(req: Request, res: Response) {
@@ -26,7 +28,10 @@ class EventController {
             const bannerUrl = await s3Service.uploadFile(banner, 'event-banners');
             const watermarkUrl = await s3Service.uploadFile(watermark, 'event-watermarks');
             const trailerUrl = await s3Service.uploadFile(trailer, 'event-trailers')
-
+             const channel = await createChannel(name);
+            // if (!channel || !channel.arn) {
+            //     return res.status(500).json({ message: 'Failed to create broadcast channel' });
+            // }
             const event = new Event({
                 name,
                 date,
@@ -40,6 +45,8 @@ class EventController {
                 broadcastSoftware,
                 scheduledTestDate,
                 createdBy: userId,
+                ivsChannelArn: channel && channel.arn,
+                ivsPlaybackUrl: channel && channel.playbackUrl, 
             });
 
             await event.save();
@@ -402,8 +409,6 @@ async getUpcomingEvents(req: Request, res: Response) {
         }
     }
 
-// ...existing code...
-
     async deleteEvent(req: Request, res: Response) {
         const { id } = req.params;
 
@@ -430,6 +435,51 @@ async getUpcomingEvents(req: Request, res: Response) {
             res.status(500).json({ message: 'Server error' });
         }
     }
+
+    async getStreamKeyForEvent(req: Request, res: Response) {
+    const userId = req.user.id;
+    const { eventId } = req.params;
+
+    // Check if user has a valid streampass for this event
+    const streampass = await Streampass.findOne({ user: userId, event: eventId });
+    if (!streampass) {
+        return res.status(403).json({ message: 'No access to this event' });
+    }
+
+    const event = await Event.findById(eventId);
+    if (!event || !event.ivsChannelArn) {
+        return res.status(404).json({ message: 'Event or IVS channel not found' });
+    }
+
+    const streamKey = await getStreamKey(event.ivsChannelArn);
+    if (!streamKey || !streamKey) {
+        return res.status(500).json({ message: 'Failed to retrieve stream key' });
+    }
+    res.json({ streamKey: streamKey });
+}
+
+async getPlaybackUrl(req: Request, res: Response) {
+    const userId = req.user.id;
+    const { eventId } = req.params;
+
+    const streampass = await Streampass.findOne({ user: userId, event: eventId });
+    if (!streampass) {
+        return res.status(403).json({ message: 'No access to this event' });
+    }
+
+    const event = await Event.findById(eventId);
+    if (!event || !event.ivsChannelArn) {
+        return res.status(404).json({ message: 'Event or IVS channel not found' });
+    }
+
+    // IVS playback URL format: https://{playbackUrl}/index.m3u8
+    res.json({ playbackUrl: event.ivsPlaybackUrl });
+ }
+    async ivsWebhook(req: Request, res: Response) {
+    // Handle IVS webhook events here
+    // e.g., update event status, notify users, etc.
+    res.status(200).send('OK');
+}
 }
 
 export default new EventController();

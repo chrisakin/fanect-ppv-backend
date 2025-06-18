@@ -43,7 +43,9 @@ export interface IEvent extends Document {
     scheduledTestDate: Date;
     trailerUrl: string;
     status: EventStatus,
-    adminStatus: AdminStatus    
+    adminStatus: AdminStatus;
+    ivsChannelArn: string,
+    ivsPlaybackUrl: string, 
 }
 
 export enum EventStatus {
@@ -75,6 +77,8 @@ const EventSchema: Schema = new Schema(
         broadcastSoftware: { type: String, required: true },
         scheduledTestDate: { type: Date, required: true },
         trailerUrl: { type: String },
+        ivsChannelArn: { type: String },
+        ivsPlaybackUrl: { type: String },
         updatedBy: { type: mongoose.Types.ObjectId, ref: 'User' },
     },
     { timestamps: true }

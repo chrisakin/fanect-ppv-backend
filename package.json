@@ -9,6 +9,7 @@
     "dev": "nodemon src/server.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-ivs": "^3.830.0",
     "@aws-sdk/client-s3": "^3.817.0",
     "@aws-sdk/s3-request-presigner": "^3.817.0",
     "@types/handlebars": "^4.0.40",
