@@ -1,4 +1,5 @@
 import Stripe from 'stripe';
+import { IPrice } from '../models/Event';
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
 const stripe = new Stripe(STRIPE_SECRET_KEY, {
@@ -15,8 +16,10 @@ export async function verifyStripePayment(reference: string): Promise<any> {
             const meta = paymentIntent.metadata;
             const eventId = meta?.eventId;
             const userId = meta?.userId;
-            const amount = paymentIntent.amount_received 
-            return { success: true, eventId, userId, amount };
+            const amount = paymentIntent.amount_received
+            const friends = JSON.parse(meta?.friends)
+            const currency = meta?.currency
+            return { success: true, eventId, userId, amount, friends, currency};
         }
 
         return { success: false };
@@ -30,7 +33,7 @@ export async function verifyStripePayment(reference: string): Promise<any> {
     }
 }
 
-export async function createStripeCheckoutSession(currency: string, event: any, user: any, friends: any) {
+export async function createStripeCheckoutSession(currency: string, event: any, user: any, friends: any, price: IPrice) {
     const session = await stripe.checkout.sessions.create({
         payment_method_types: ['card'],
             mode: 'payment',
@@ -42,7 +45,7 @@ export async function createStripeCheckoutSession(currency: string, event: any, 
                                 name: event.name,
                                 description: event.description,
                             },
-                            unit_amount: Math.round(Number(event.price) * 100), // price in cents
+                            unit_amount: Math.round(Number(friends.length > 1 ? price.amount * friends.length : price.amount) * 100), // price in cents
                         },
                         quantity: 1,
                     },
@@ -50,7 +53,8 @@ export async function createStripeCheckoutSession(currency: string, event: any, 
                 metadata: {
                     eventId: event._id.toString(),
                     userId: user.id,
-                    friends: JSON.parse(friends)
+                    friends: JSON.stringify(friends),
+                    currency: currency
                 },
                 success_url: `${process.env.FRONTEND_URL}/stripe/payment-success?session_id={CHECKOUT_SESSION_ID}`,
                 cancel_url: `${process.env.FRONTEND_URL}/stripe/payment-success`,

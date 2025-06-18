@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { IEvent } from '../models/Event';
+import { IEvent, IPrice } from '../models/Event';
 
 const FLUTTERWAVE_SECRET_KEY = process.env.FLUTTERWAVE_SECRET_KEY;
 
@@ -26,7 +26,9 @@ export async function verifyFlutterwavePayment(reference: string): Promise<any> 
             const eventId = meta?.eventId;
             const userId = meta?.userId;
             const amount = Number(data.data.amount)
-            return { success: true, eventId, userId, amount };
+            const friends = JSON.parse(meta?.friends)
+            const currency = meta?.currency
+            return { success: true, eventId, userId, amount, friends, currency };
         }
 
         return { success: false };
@@ -46,10 +48,10 @@ export function generateTxRef(prefix = "FANECT"): string {
   return `${prefix}_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
 }
 
-export async function flutterwaveInitialization(event: any, currency: string, user: any, friends: any) {
+export async function flutterwaveInitialization(event: any, currency: string, user: any, friends: [], price: IPrice) {
     const response = await axios.post('https://api.flutterwave.com/v3/payments', {
         tx_ref: generateTxRef(),
-        amount: event.price,
+        amount: friends.length > 1 ? price.amount * friends.length : price.amount,
         currency: currency,
         redirect_url: `${process.env.FRONTEND_URL}/flutterwave/payment-success`,
         customer: {
@@ -59,7 +61,8 @@ export async function flutterwaveInitialization(event: any, currency: string, us
         meta: {
             userId: user.id,
             eventId: event._id.toString(),
-            friends: JSON.parse(friends)
+            friends: JSON.stringify(friends),
+            currency: currency
         }
           }, {
         headers: { Authorization: `Bearer ${FLUTTERWAVE_SECRET_KEY}` }

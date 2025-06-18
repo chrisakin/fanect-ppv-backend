@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import Streampass from '../models/Streampass';
-import Event, { EventStatus } from '../models/Event';
+import Event, { Currency, EventStatus } from '../models/Event';
 import { flutterwaveInitialization, getAllBanks, resolveBankAccount, verifyFlutterwavePayment } from '../services/flutterwaveService';
 import { createStripeCheckoutSession, verifyStripePayment } from '../services/stripeService';
 import emailService from '../services/emailService';
@@ -9,6 +9,9 @@ import mongoose from 'mongoose';
 import { paginateAggregate } from '../services/paginationService';
 import Stripe from 'stripe';
 import axios from 'axios';
+import { countryToCurrency } from '../types';
+import User from '../models/User';
+import Gift from '../models/Gift';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
     apiVersion: '2025-04-30.basil',
@@ -32,34 +35,115 @@ class StreampassController {
             if (!paymentVerified) {
                 return res.status(400).json({ message: 'Payment verification failed' });
             }
-            const {success, eventId, userId, amount} = paymentVerified
+            const {success, eventId, userId, amount, friends, currency} = paymentVerified
             if(!success) return res.status(400).json({ message: 'Payment not verified' });
             const verify = await Streampass.findOne({paymentMethod, paymentReference, event: eventId, user:userId})
             if(verify) return res.status(201).json({ message: 'Streampass purchased successfully', streampass: verify });
             const event = await Event.findById(eventId);
             if (!event) return res.status(404).json({ message: 'Event not found' });
-            //const expectedAmount = paymentMethod == 'stripe' ? Math.round(Number(event.price) * 100): event.price;
-            //if(amount != expectedAmount) return res.status(400).json({ message: 'Payment Not verified. Please contact customer care.' });
+
+            const priceObj = event.prices.find((p: any) => p.currency === currency);
+            const expectedAmount = paymentMethod == 'stripe' ? Math.round(Number(priceObj?.amount) * 100): priceObj?.amount;
+            if(amount != expectedAmount) return res.status(400).json({ message: 'Payment Not verified. Please contact customer care.' });
+            
             // Create streampass
-            const streampass = await Streampass.create({
-                user: userId,
-                event: eventId,
-                paymentMethod,
-                paymentReference
-            });
             const user = await getOneUser(userId, res);
             if (!user || !user.email) {
                 return res.status(404).json({ message: 'User not found or email missing' });
             }
-            // Send email to user
+            let streams
+             if(friends && friends.length > 0) {
+                const emails = friends.map((f: { email: string; }) => f.email.toLowerCase());
+                const users = await User.find({ email: { $in: emails } }).select('_id email');
+                const userMap = new Map(users.map(u => [u.email.toLowerCase(), u._id]));
+                const streampass: any[] = [];
+                const gifts: any[] = [];
+               
+                for (const friend of friends) {
+                const friendUserId = userMap.get(friend.email.toLowerCase());
+                streampass.push({
+                event: eventId,
+                paymentMethod,
+                paymentReference,
+                firstName: friend.firstName,
+                email: friend.email,
+                isGift: true,
+                ...(friendUserId ? { user: friendUserId } : {})
+                });
+
+                gifts.push({
+                sender: user.id,
+                receiversEmail: friend.email,
+                receiverFirstName: friend.firstName,
+                hasUsed: false,
+                paymentMethod,
+                paymentReference,
+                event: eventId,
+                });
+                }
+
+                 await Streampass.insertMany(streampass);
+                await Gift.insertMany(gifts);
+                streams = {event: eventId, user: userId}
+                await Promise.all(
+            streampass.map(pass => {
+            return emailService.sendEmail(
+                pass.email,
+                'You received a gift Streampass!',
+                'giftStreamPass',
+            {
+                receiverName: pass.firstName,
+                eventName: event.name,
+                eventDate: new Date(event.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+                eventTime: event.time,
+                giverName: user.firstName,
+                accessUrl: `${process.env.FRONTEND_URL}`,
+                year: new Date().getFullYear()
+            });
+                })
+            );
+            await emailService.sendEmail(
+                user.email,
+                'You purchased a gift Streampass!',
+                'giftSenderReceipt',
+            {
+                giverName: user.firstName,
+                eventName: event.name,
+                eventDate: new Date(event.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+                eventTime: event.time,
+                giftReference:paymentReference,
+                giftedBy: user.firstName,
+                year: new Date().getFullYear(),
+                paymentDate: new Date(), 
+                amount: `${currency} ${amount}`
+            });
+            } else {
+                streams = await Streampass.create({
+                user: userId,
+                event: eventId,
+                paymentMethod,
+                paymentReference,
+                email: user.email,
+                firstName: user.firstName,
+                isGift: false
+            });
             await emailService.sendEmail(
             user.email,
             'Event Streampass',
             'eventStreamPass',
-            { eventName: event.name, userName: user.firstName, paymentReference: paymentReference, paymentDate: new Date(), amount: amount, year: new Date().getFullYear() }
+            { 
+                eventName: event.name,
+                eventDate: new Date(event.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+                eventTime: event.time,
+                userName: user.firstName, 
+                paymentReference: paymentReference, 
+                paymentDate: new Date(), 
+                amount: `${currency} ${amount}`, 
+                year: new Date().getFullYear() }
             );
-
-            res.status(201).json({ message: 'Streampass purchased successfully', streampass });
+            }
+            
+            res.status(201).json({ message: 'Streampass purchased successfully', streampass: streams });
         } catch (error) {
             console.error(error);
             res.status(500).json({ message: 'Server error' });
@@ -279,6 +363,7 @@ class StreampassController {
         try {
             const { eventId, currency, friends } = req.body;
             const event = await Event.findById(eventId) as (typeof Event.prototype & { _id: mongoose.Types.ObjectId });
+            const priceObj = event.prices.find((p: any) => p.currency === currency);
             if (!event) {
                 return res.status(404).json({ message: 'Event not found' });
             }
@@ -287,7 +372,7 @@ class StreampassController {
             if(verifyStreamPass && (!friends || friends.length == 0)) {
                 return res.status(404).json({ message: 'You already have a streampass for this event' });
             }
-            const session = await createStripeCheckoutSession(currency, event, user, friends)
+            const session = await createStripeCheckoutSession(currency, event, user, friends, priceObj)
             res.status(200).json({ url: session.url });
         } catch (error) {
             console.error(error);
@@ -299,18 +384,21 @@ class StreampassController {
         try {
            const { eventId, currency, friends } = req.body;
             const event = await Event.findById(eventId) as (typeof Event.prototype & { _id: mongoose.Types.ObjectId });
+            const priceObj = event.prices.find((p: any) => p.currency === currency);
             if (!event) {
                 return res.status(404).json({ message: 'Event not found' });
             }
+            console.log(friends)
             const user = {id: req.user.id, email: req.user.email, name: req.user.name}
             const verifyStreamPass = await Streampass.findOne({event:eventId, user:req.user.id})
             if(verifyStreamPass && (!friends || friends.length == 0)) {
                 return res.status(404).json({ message: 'You already have a streampass for this event' });
             }
-             const response = await flutterwaveInitialization(event, currency, user, friends)
+             const response = await flutterwaveInitialization(event, currency, user, friends, priceObj)
                 res.status(200).json({ link: response.data.data.link });
             } catch (error) {
-            
+            console.error(error);
+            res.status(500).json({ message: 'Flutterwave Initialisation and  creation failed' });
             }
     }
 
