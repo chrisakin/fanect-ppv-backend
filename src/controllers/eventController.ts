@@ -6,12 +6,14 @@ import { countryToCurrency } from '../types';
 import { createChannel, getStreamKey } from '../services/ivsService';
 import Streampass from '../models/Streampass';
 import mongoose from 'mongoose';
+import { IUser } from '../models/User';
+import { sendNotificationToUsers } from '../services/fcmService';
+import EmailService from '../services/emailService';
 
 class EventController {
     async createEvent(req: Request, res: Response) {
         const { name, date, time, description, prices, haveBroadcastRoom, broadcastSoftware, scheduledTestDate } = req.body;
         const userId = req.user.id;
-        console.log(req.body)
         let price
         if(!prices ) {
            return res.status(400).json({ message: 'At least one price is required' });
@@ -324,7 +326,15 @@ async getUpcomingEvents(req: Request, res: Response) {
         const { name, date, time, description, prices, haveBroadcastRoom, broadcastSoftware, scheduledTestDate } = req.body;
         const userId = req.user.id;
         try {
-            let price = JSON.parse(prices)
+             let price
+        if(!prices ) {
+           return res.status(400).json({ message: 'At least one price is required' });
+        }
+        if (typeof prices === 'string') {
+        price = JSON.parse(prices);
+        } else {
+        price = prices
+        }
             const event = await Event.findById(id);
             if (!event) {
                 return res.status(404).json({ message: 'Event not found' });
@@ -374,6 +384,9 @@ async getUpcomingEvents(req: Request, res: Response) {
             }
             if(watermarkKey) {
             await s3Service.deleteFile(watermarkKey)
+            }
+            if(trailerKey) {
+            await s3Service.deleteFile(trailerKey)
             }
             res.status(200).json({ message: 'Event updated successfully', event });
         } catch (error) {
@@ -490,14 +503,103 @@ async getPlaybackUrl(req: Request, res: Response) {
     if (!event || !event.ivsChannelArn) {
         return res.status(404).json({ message: 'Event or IVS channel not found' });
     }
-
     // IVS playback URL format: https://{playbackUrl}/index.m3u8
     res.json({ playbackUrl: event.ivsPlaybackUrl });
  }
+
     async ivsWebhook(req: Request, res: Response) {
-    // Handle IVS webhook events here
-    // e.g., update event status, notify users, etc.
+       try {
+        // IVS sends events as JSON in the body
+        const { event, channel_arn } = req.body;
+
+        // Log the event for debugging
+        console.log('IVS Webhook received:', req.body);
+
+        // Find the event by IVS channel ARN
+        const eventDoc = await Event.findOne({ ivsChannelArn: channel_arn });
+        if (!eventDoc) {
+            return res.status(404).json({ message: 'Event not found for this channel ARN' });
+        }
+
+        // Handle stream start and end
+        if (event === 'stream-start') {
+            eventDoc.status = EventStatus.LIVE;
+            await eventDoc.save();
+             await this.notifyEventStatus(eventDoc, EventStatus.LIVE);
+
+            // Optionally: notify users here
+        } else if (event === 'stream-end') {
+            eventDoc.status = EventStatus.PAST;
+            await eventDoc.save();
+            await this.notifyEventStatus(eventDoc, EventStatus.PAST);
+            // Optionally: notify users here
+        }
+
+        // You can handle other IVS events here if needed
+
+        res.status(200).send('OK');
+    } catch (error) {
+        console.error('IVS Webhook error:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
     res.status(200).send('OK');
+}
+
+async notifyEventStatus(eventDoc: any, status: EventStatus) {
+    // Find all users with a streampass for this event
+    const streampasses = await Streampass.find({ event: eventDoc._id }).populate('user');
+    const users = streampasses.map(sp => sp.user) as unknown as IUser[];
+
+    // Prepare notification details
+    const eventName = eventDoc.name;
+    const eventDate = new Date(eventDoc.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    const eventTime = eventDoc.time;
+
+    // For event started
+    if (status === EventStatus.LIVE) {
+        // App notifications
+        const appUsers = users.filter(u => u.appNotifLiveStreamBegins);
+        await sendNotificationToUsers(
+            appUsers.map((u: any) => u._id.toString()),
+            'Live Stream Started',
+            `The event "${eventName}" has started!`,
+            { eventId: eventDoc._id.toString() }
+        );
+
+        // Email notifications
+        const emailUsers = users.filter(u => u.emailNotifLiveStreamBegins);
+        for (const user of emailUsers) {
+            await EmailService.sendEmail(
+                user.email,
+                'Live Stream Started',
+                'eventLiveStreamBegins', // your email template
+                { eventName, eventDate, eventTime, userName: user.firstName, year: new Date().getFullYear() }
+            );
+        }
+    }
+
+    // For event ended
+    if (status === EventStatus.PAST) {
+        // App notifications
+        const appUsers = users.filter(u => u.appNotifLiveStreamEnds);
+        await sendNotificationToUsers(
+            appUsers.map((u: any) => u._id.toString()),
+            'Live Stream Ended',
+            `The event "${eventName}" has ended.`,
+            { eventId: eventDoc._id.toString() }
+        );
+
+        // Email notifications
+        const emailUsers = users.filter(u => u.emailNotifLiveStreamEnds);
+        for (const user of emailUsers) {
+            await EmailService.sendEmail(
+                user.email,
+                'Live Stream Ended',
+                'eventLiveStreamEnds', // your email template
+                { eventName, eventDate, eventTime, userName: user.firstName, year: new Date().getFullYear() }
+            );
+        }
+    }
 }
 
 async getEventAnalytics(eventId: string, selectedMonth: string, selectedCurrency: string) {

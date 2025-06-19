@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Event Ended - FaNect</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #f9fafb;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    .email-container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 24px;
+      background-color: #ffffff;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    .header {
+      text-align: center;
+      padding-bottom: 16px;
+    }
+
+    .brand {
+      font-size: 24px;
+      font-weight: 700;
+      color: #16a34a  !important;
+      text-decoration: none;
+    }
+
+    .title {
+      font-size: 20px;
+      font-weight: 600;
+      color: #111827;
+      margin: 24px 0 8px;
+      text-align: center;
+    }
+
+    .content {
+      font-size: 16px;
+      color: #374151;
+      line-height: 1.6;
+    }
+
+    .receipt-box {
+      margin: 20px 0;
+      padding: 16px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      background-color: #f3f4f6;
+    }
+
+    .receipt-item {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .footer {
+      text-align: center;
+      font-size: 14px;
+      color: #6b7280;
+      margin-top: 32px;
+    }
+
+    @media (max-width: 600px) {
+      .email-container {
+        padding: 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="email-container">
+    <div class="header">
+      <a href="https://fanect.com" class="brand">FaNect</a>
+    </div>
+
+    <div class="title">🎬 Event Stream Ended</div>
+
+    <div class="content">
+      <p>Hi {{userName}},</p>
+
+      <p>The live stream for your event has ended. Here are your event details:</p>
+
+      <div class="receipt-box">
+        <div class="receipt-item">
+          <strong>Event:</strong>
+          <span>{{eventName}}</span>
+        </div>
+         <div class="receipt-item">
+          <strong>Event Date:</strong>
+          <span>{{eventDate}}</span>
+        </div>
+         <div class="receipt-item">
+          <strong>Event Time:</strong>
+          <span>{{eventTime}}</span>
+        </div>
+      </div>
+
+      <p>Thank you for joining us! We hope you enjoyed the event.<br/>
+      For any assistance, kindly contact support@fanect.com.</p>
+
+      <p>Best regards,<br/>— The FaNect Team</p>
+    </div>
+
+    <div class="footer">
+      &copy; {{year}} FaNect. All rights reserved.
+    </div>
+  </div>
+</body>
+</html>
