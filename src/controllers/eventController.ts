@@ -327,14 +327,16 @@ async getUpcomingEvents(req: Request, res: Response) {
         const userId = req.user.id;
         try {
              let price
-        if(!prices ) {
-           return res.status(400).json({ message: 'At least one price is required' });
-        }
-        if (typeof prices === 'string') {
+        // if(!prices ) {
+        //    return res.status(400).json({ message: 'At least one price is required' });
+        // }
+       if(prices) {
+         if (typeof prices === 'string') {
         price = JSON.parse(prices);
         } else {
         price = prices
         }
+       }
             const event = await Event.findById(id);
             if (!event) {
                 return res.status(404).json({ message: 'Event not found' });
