@@ -347,11 +347,13 @@ async getUpcomingEvents(req: Request, res: Response) {
             }
 
             // Only check if date or time is being updated
+            if(date || time) {
             const newDate = date || event.date;
             const newTime = time || event.time;
             const eventDateTime = new Date(`${newDate}T${newTime}`);
             if (isNaN(eventDateTime.getTime()) || eventDateTime <= new Date()) {
                 return res.status(400).json({ message: 'Event date and time must be in the future' });
+              }
             }
             let bannerKey
             const files = req.files as { [fieldname: string]: Express.Multer.File[] };
