@@ -17,7 +17,7 @@ export async function verifyStripePayment(reference: string): Promise<any> {
             const eventId = meta?.eventId;
             const userId = meta?.userId;
             const amount = paymentIntent.amount_received
-            const friends = JSON.parse(meta?.friends)
+            const friends = meta?.friends && JSON.parse(meta?.friends)
             const currency = meta?.currency
             return { success: true, eventId, userId, amount, friends, currency};
         }
@@ -45,7 +45,7 @@ export async function createStripeCheckoutSession(currency: string, event: any, 
                                 name: event.name,
                                 description: event.description,
                             },
-                            unit_amount: Math.round(Number(friends.length > 1 ? price.amount * friends.length : price.amount) * 100), // price in cents
+                            unit_amount: Math.round(Number(friends && friends.length > 1 ? price.amount * friends.length : price.amount) * 100), // price in cents
                         },
                         quantity: 1,
                     },
@@ -53,7 +53,7 @@ export async function createStripeCheckoutSession(currency: string, event: any, 
                 metadata: {
                     eventId: event._id.toString(),
                     userId: user.id,
-                    friends: JSON.stringify(friends),
+                    friends: friends && JSON.stringify(friends),
                     currency: currency
                 },
                 success_url: `${process.env.FRONTEND_URL}/stripe/payment-success?session_id={CHECKOUT_SESSION_ID}`,

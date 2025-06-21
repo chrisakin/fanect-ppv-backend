@@ -26,7 +26,7 @@ export async function verifyFlutterwavePayment(reference: string): Promise<any> 
             const eventId = meta?.eventId;
             const userId = meta?.userId;
             const amount = Number(data.data.amount)
-            const friends = JSON.parse(meta?.friends)
+            const friends = meta?.friends && JSON.parse(meta?.friends)
             const currency = meta?.currency
             return { success: true, eventId, userId, amount, friends, currency };
         }
@@ -51,7 +51,7 @@ export function generateTxRef(prefix = "FANECT"): string {
 export async function flutterwaveInitialization(event: any, currency: string, user: any, friends: [], price: IPrice) {
     const response = await axios.post('https://api.flutterwave.com/v3/payments', {
         tx_ref: generateTxRef(),
-        amount: friends.length > 1 ? price.amount * friends.length : price.amount,
+        amount: friends && friends.length > 1 ? price.amount * friends.length : price.amount,
         currency: currency,
         redirect_url: `${process.env.FRONTEND_URL}/flutterwave/payment-success`,
         customer: {
@@ -61,7 +61,7 @@ export async function flutterwaveInitialization(event: any, currency: string, us
         meta: {
             userId: user.id,
             eventId: event._id.toString(),
-            friends: JSON.stringify(friends),
+            friends: friends && JSON.stringify(friends),
             currency: currency
         }
           }, {

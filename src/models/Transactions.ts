@@ -1,5 +1,11 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
+export enum TransactionStatus {
+    SUCCESSFUL = 'Successful',
+    PENDING = 'Pending',
+    FAILED = 'Failed'
+}
+
 export interface ITransactions extends Document {
     user: mongoose.Types.ObjectId;
     event: mongoose.Types.ObjectId;
@@ -9,6 +15,7 @@ export interface ITransactions extends Document {
     createdAt: Date;
     isGift: boolean,
     currency: string;
+    status: TransactionStatus
 }
 
 const TransactionsSchema = new Schema<ITransactions>({
@@ -19,6 +26,7 @@ const TransactionsSchema = new Schema<ITransactions>({
     paymentReference: { type: String, required: true },
     currency: { type: String, required: true },
     amount: { type: Number, required: true},
+    status: { type: String, default: TransactionStatus.PENDING },
     createdAt: { type: Date, default: Date.now }
 });
 
