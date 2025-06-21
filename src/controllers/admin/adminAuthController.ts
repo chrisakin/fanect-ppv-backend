@@ -1,15 +1,15 @@
 import { Request, Response } from 'express';
-import User from '../models/User';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
-import EmailService from '../services/emailService';
+import EmailService from '../../services/emailService';
 import { OAuth2Client } from 'google-auth-library';
-import { getOneUser } from '../services/userService';
-import { verifyAppleIdToken } from '../services/appleAuthService';
-import Gift from '../models/Gift';
-import Streampass from '../models/Streampass';
+import { getOneAdmin } from '../../services/userService';
+import { verifyAppleIdToken } from '../../services/appleAuthService';
+import Gift from '../../models/Gift';
+import Streampass from '../../models/Streampass';
 import mongoose from 'mongoose';
+import Admin from '../../models/Admin';
 
 const client = new OAuth2Client(process.env.GOOGLE_LOGIN_CLIENT_ID);
 
@@ -29,7 +29,6 @@ class AuthController {
         this.logout = this.logout.bind(this);
         this.changePassword = this.changePassword.bind(this);
         this.deleteAccount = this.deleteAccount.bind(this);
-        this.getGiftsAndUpdateStreamPass = this.getGiftsAndUpdateStreamPass.bind(this)
     }
 
     async register(req: Request, res: Response) {
@@ -39,9 +38,9 @@ class AuthController {
             if(!email || !password || !firstName || !lastName) {
                 return res.status(400).json({ message: 'All fields are required' });
             }
-            const existingUser = await User.findOne({ email });
+            const existingUser = await Admin.findOne({ email });
             if (existingUser) {
-                return res.status(400).json({ message: 'User already exists' });
+                return res.status(400).json({ message: 'Admin already exists' });
             }
             const username = email.split('@')[0]; // Use part of the email as username
             const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -52,7 +51,7 @@ class AuthController {
             const verificationCode = Math.floor(100000 + Math.random() * 900000).toString(); // Generate 6-digit code
             const verificationCodeExpires = Date.now() + 3600000; // 1 hour
 
-            const newUser = new User({
+            const newUser = new Admin({
                 username,
                 email,
                 password: hashedPassword,
@@ -84,26 +83,26 @@ class AuthController {
         const { email } = req.body;
     
         try {
-            const user = await User.findOne({ email });
+            const admin = await Admin.findOne({ email });
     
-            if (!user) {
-                return res.status(400).json({ message: 'User not found' });
+            if (!admin) {
+                return res.status(400).json({ message: 'admin not found' });
             }
     
-            if (user.isVerified) {
-                return res.status(400).json({ message: 'User is already verified' });
+            if (admin.isVerified) {
+                return res.status(400).json({ message: 'admin is already verified' });
             }
-            if(user.isDeleted) {
-                return res.status(400).json({ message: 'User account has been deleted. Kinldy contact support' });
+            if(admin.isDeleted) {
+                return res.status(400).json({ message: 'admin account has been deleted. Kinldy contact support' });
             }
     
             // Generate a new verification code
             const verificationCode = Math.floor(100000 + Math.random() * 900000).toString(); // Generate 6-digit code
             const verificationCodeExpires = Date.now() + 3600000; // 1 hour
     
-            user.verificationCode = verificationCode;
-            user.verificationCodeExpires = verificationCodeExpires;
-            await user.save();
+            admin.verificationCode = verificationCode;
+            admin.verificationCodeExpires = verificationCodeExpires;
+            await admin.save();
     
             // Resend verification email
             await EmailService.sendEmail(
@@ -127,21 +126,21 @@ class AuthController {
   try {
     session.startTransaction();
 
-    const user = await User.findOne({ email }).session(session);
+    const user = await Admin.findOne({ email }).session(session);
 
     if (!user) {
       await session.abortTransaction();
-      return res.status(400).json({ message: 'User not found' });
+      return res.status(400).json({ message: 'Admin not found' });
     }
 
     if (user.isDeleted) {
       await session.abortTransaction();
-      return res.status(400).json({ message: 'User account has been deleted. Kindly contact support' });
+      return res.status(400).json({ message: 'Admin account has been deleted. Kindly contact support' });
     }
 
     if (user.isVerified) {
       await session.abortTransaction();
-      return res.status(400).json({ message: 'User is already verified' });
+      return res.status(400).json({ message: 'Admin is already verified' });
     }
 
     if (user.verificationCode !== code || (user.verificationCodeExpires ?? 0) < Date.now()) {
@@ -149,10 +148,7 @@ class AuthController {
       return res.status(400).json({ message: 'Invalid or expired verification code' });
     }
 
-    // ✅ Update associated streampasses and gifts
     const userId = (user._id as mongoose.Types.ObjectId).toString();
-    await this.getGiftsAndUpdateStreamPass(email, userId, session)
-
     // ✅ Mark user as verified
     user.isVerified = true;
     user.verificationCode = undefined;
@@ -194,7 +190,7 @@ class AuthController {
         const { email, password } = req.body;
 
         try {
-            const user = await User.findOne({ email });
+            const user = await Admin.findOne({ email });
             if (!user) {
                 return res.status(400).json({ message: 'Invalid credentials' });
             }
@@ -205,7 +201,7 @@ class AuthController {
             }
 
             if(user.isDeleted) {
-                return res.status(400).json({ message: 'User account has been deleted. Kinldy contact support' });
+                return res.status(400).json({ message: 'Admin account has been deleted. Kinldy contact support' });
             }
             if(user.isVerified === false) {
                 const verificationCode = Math.floor(100000 + Math.random() * 900000).toString(); // Generate 6-digit code
@@ -222,7 +218,7 @@ class AuthController {
                 'emailVerification',
                 { code: verificationCode, year: new Date().getFullYear() }
             );
-            return res.status(400).json({ message: 'User is not verified' });
+            return res.status(400).json({ message: 'Admin is not verified' });
             }
 
             const accessToken = this.generateAccessToken(((user._id as string).toString()), user.email, user.firstName);
@@ -232,7 +228,7 @@ class AuthController {
             user.refreshToken = refreshToken;
             await user.save();
 
-            res.status(201).json({ message: 'User logged in successfully', data: { accessToken, refreshToken } });
+            res.status(201).json({ message: 'Admin logged in successfully', data: { accessToken, refreshToken } });
         } catch (error) {
             res.status(500).json({ message: 'Something went wrong. Please try again later' });
         }
@@ -247,7 +243,7 @@ class AuthController {
 
         try {
             const decoded: any = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET || 'refresh_secret');
-            const user = await User.findById(decoded.id);
+            const user = await Admin.findById(decoded.id);
 
             if (!user || user.refreshToken !== refreshToken) {
                 return res.status(403).json({ message: 'Invalid refresh token' });
@@ -263,12 +259,12 @@ class AuthController {
     async getProfile(req: Request, res: Response) {
         const userId = req.user.id;
         try {
-            const user = await getOneUser(userId, res);
+            const user = await getOneAdmin(userId, res);
             if (!user) {
-                return res.status(404).json({ message: 'User not found' });
+                return res.status(404).json({ message: 'Admin not found' });
             }
             if(user.isDeleted) {
-                return res.status(400).json({ message: 'User account has been deleted. Kinldy contact support' });
+                return res.status(400).json({ message: 'Admin account has been deleted. Kinldy contact support' });
             }
             res.json(user);
         } catch (error) {
@@ -282,17 +278,16 @@ class AuthController {
     const { firstName, lastName, username, appNotifLiveStreamBegins, appNotifLiveStreamEnds, emailNotifLiveStreamBegins, emailNotifLiveStreamEnds } = req.body;
 
     try {
-        const user = await User.findById(userId);
+        const user = await Admin.findById(userId);
         if (!user) {
-            return res.status(404).json({ message: 'User not found' });
+            return res.status(404).json({ message: 'Admin not found' });
         }
         if(user.isDeleted) {
-            return res.status(400).json({ message: 'User account has been deleted. Kinldy contact support' });
+            return res.status(400).json({ message: 'Admin account has been deleted. Kinldy contact support' });
         }
 
         if (firstName) user.firstName = firstName;
         if (lastName) user.lastName = lastName;
-        if (username) user.username = username;
         if(appNotifLiveStreamBegins) user.appNotifLiveStreamBegins = appNotifLiveStreamBegins;
         if(appNotifLiveStreamEnds) user.appNotifLiveStreamEnds = appNotifLiveStreamEnds;
         if(emailNotifLiveStreamBegins) user.emailNotifLiveStreamBegins = emailNotifLiveStreamBegins;
@@ -311,12 +306,12 @@ class AuthController {
         const { email, platform } = req.body;
 
         try {
-            const user = await User.findOne({ email });
+            const user = await Admin.findOne({ email });
             if (!user) {
-                return res.status(400).json({ message: 'User not found' });
+                return res.status(400).json({ message: 'Admin not found' });
             }
             if(user.isDeleted) {
-                return res.status(400).json({ message: 'User account has been deleted. Kinldy contact support' });
+                return res.status(400).json({ message: 'Admin account has been deleted. Kinldy contact support' });
             }
 
             if(platform == 'mobile') {
@@ -354,7 +349,7 @@ class AuthController {
         const { password } = req.body;
 
         try {
-            const user = await User.findOne({
+            const user = await Admin.findOne({
                 resetPasswordToken: token,
                 resetPasswordExpires: { $gt: Date.now() },
             });
@@ -363,7 +358,7 @@ class AuthController {
                 return res.status(400).json({ message: 'Password reset token is invalid or has expired' });
             }
             if(user.isDeleted) {
-                return res.status(400).json({ message: 'User account has been deleted. Kinldy contact support' });
+                return res.status(400).json({ message: 'Admin account has been deleted. Kinldy contact support' });
             }
 
             const hashedPassword = await bcrypt.hash(password, 10);
@@ -402,32 +397,27 @@ async googleAuth(req: Request, res: Response) {
     const { email, given_name: firstName, family_name: lastName } = payload;
 
     // Check if the user already exists
-    let user = await User.findOne({ email }).session(session);
+    let user = await Admin.findOne({ email }).session(session);
 
     if (!user) {
       if (path === 'signup') {
         // Create a new user if not found
-        user = new User({
+        user = new Admin({
           username: email?.split('@')[0],
           email,
           firstName,
           lastName,
           isVerified: true, // Google accounts are already verified
         });
-
-        const userId = (user._id as mongoose.Types.ObjectId).toString();
-
-        // Update associated streampasses and gifts
-        await this.getGiftsAndUpdateStreamPass(email as string, userId, session);
       } else {
         await session.abortTransaction();
-        return res.status(400).json({ message: 'User not found, go and signup for an account' });
+        return res.status(400).json({ message: 'Admin not found, go and signup for an account' });
       }
     }
 
     if (user && user.isDeleted) {
       await session.abortTransaction();
-      return res.status(400).json({ message: 'User account has been deleted. Kindly contact support' });
+      return res.status(400).json({ message: 'Admin account has been deleted. Kindly contact support' });
     }
 
     if (user && user.isVerified === false) {
@@ -470,15 +460,15 @@ async appleAuth(req: Request, res: Response) {
   try {
     session.startTransaction();
 
-    const appleUser = await verifyAppleIdToken(id_token);
-    const email = appleUser.email;
-    const appleId = appleUser.sub;
+    const appleAdmin = await verifyAppleIdToken(id_token);
+    const email = appleAdmin.email;
+    const appleId = appleAdmin.sub;
 
-    let user = await User.findOne({ $or: [{ email }, { appleId }] }).session(session);
+    let user = await Admin.findOne({ $or: [{ email }, { appleId }] }).session(session);
 
     if (!user) {
       if (path === 'signup') {
-        user = new User({
+        user = new Admin({
           username: email ? email.split('@')[0] : `apple_${appleId}`,
           email,
           appleId,
@@ -488,18 +478,15 @@ async appleAuth(req: Request, res: Response) {
         });
 
         const userId = (user._id as mongoose.Types.ObjectId).toString();
-
-        // Update associated gifts and streampasses
-        await this.getGiftsAndUpdateStreamPass(email as string, userId, session);
       } else {
         await session.abortTransaction();
-        return res.status(400).json({ message: 'User not found, please sign up.' });
+        return res.status(400).json({ message: 'Admin not found, please sign up.' });
       }
     }
 
     if (user.isDeleted) {
       await session.abortTransaction();
-      return res.status(400).json({ message: 'User account has been deleted. Kindly contact support.' });
+      return res.status(400).json({ message: 'Admin account has been deleted. Kindly contact support.' });
     }
 
     if (user.isVerified === false) {
@@ -532,18 +519,18 @@ async appleAuth(req: Request, res: Response) {
     async logout(req: Request, res: Response) {
         const userId = req.user.id;
         try {
-            const user = await User.findById(userId);
+            const user = await Admin.findById(userId);
             if (!user) {
-                return res.status(404).json({ message: 'User not found' });
+                return res.status(404).json({ message: 'Admin not found' });
             }
             if(user.isDeleted) {
-                return res.status(400).json({ message: 'User account has been deleted. Kinldy contact support' });
+                return res.status(400).json({ message: 'Admin account has been deleted. Kinldy contact support' });
             }
 
             user.refreshToken = undefined;
             await user.save();
 
-            res.status(200).json({ message: 'User logged out successfully' });
+            res.status(200).json({ message: 'Admin logged out successfully' });
         } catch (error) {
             res.status(500).json({ message: 'Something went wrong. Please try again later' });
         }
@@ -554,12 +541,12 @@ async appleAuth(req: Request, res: Response) {
         const { oldPassword, newPassword } = req.body;
 
         try {
-            const user = await User.findById(userId);
+            const user = await Admin.findById(userId);
             if (!user) {
-                return res.status(404).json({ message: 'User not found' });
+                return res.status(404).json({ message: 'Admin not found' });
             }
             if(user.isDeleted) {
-                return res.status(400).json({ message: 'User account has been deleted. Kinldy contact support' });
+                return res.status(400).json({ message: 'Admin account has been deleted. Kinldy contact support' });
             }
 
             const isMatch = await bcrypt.compare(oldPassword, user.password);
@@ -580,12 +567,12 @@ async appleAuth(req: Request, res: Response) {
     async deleteAccount(req: Request, res: Response) {
     const userId = req.user.id;
     try {
-        const user = await User.findById(userId);
+        const user = await Admin.findById(userId);
         if (!user) {
-            return res.status(404).json({ message: 'User not found' });
+            return res.status(404).json({ message: 'Admin not found' });
         }
         if(user.isDeleted) {
-            return res.status(400).json({ message: 'User account has been deleted. Kinldy contact support' });
+            return res.status(400).json({ message: 'Admin account has been deleted. Kinldy contact support' });
         }
 
         user.isDeleted = true;
@@ -595,31 +582,6 @@ async appleAuth(req: Request, res: Response) {
     } catch (error) {
         res.status(500).json({ message: 'Something went wrong. Please try again later' });
     }
-}
-
-async getGiftsAndUpdateStreamPass(email: string, userId: string, session: any) {
-  try {
-    const [giftResult, streampassResult] = await Promise.all([
-      Gift.updateMany(
-        { receiversEmail: email, hasConverted: false },
-        { $set: { hasConverted: true, user: userId } },
-        { session }
-      ),
-      Streampass.updateMany(
-        { email: email, hasConverted: false },
-        { $set: { hasConverted: true, user: userId } },
-        { session }
-      )
-    ]);
-
-    return {
-      giftModified: giftResult.modifiedCount,
-      streampassModified: streampassResult.modifiedCount,
-    };
-  } catch (error) {
-    console.error('Error updating gifts or streampasses:', error);
-    throw new Error('Failed to update gifted streampasses');
-  }
 }
 
 }

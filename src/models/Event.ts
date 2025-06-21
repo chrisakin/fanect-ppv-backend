@@ -36,6 +36,8 @@ export interface IEvent extends Document {
     watermarkUrl: string;
     createdBy: mongoose.Types.ObjectId;
     updatedBy: mongoose.Types.ObjectId;
+    publishedBy: mongoose.Types.ObjectId;
+    unpublishedBy: mongoose.Types.ObjectId;
     published: boolean
     prices: IPrice[];
     haveBroadcastRoom: boolean;
@@ -46,6 +48,7 @@ export interface IEvent extends Document {
     adminStatus: AdminStatus;
     ivsChannelArn: string,
     ivsPlaybackUrl: string, 
+    ivsChatRoomArn: string,
 }
 
 export enum EventStatus {
@@ -79,7 +82,10 @@ const EventSchema: Schema = new Schema(
         trailerUrl: { type: String },
         ivsChannelArn: { type: String },
         ivsPlaybackUrl: { type: String },
+        ivsChatRoomArn: { type: String },
         updatedBy: { type: mongoose.Types.ObjectId, ref: 'User' },
+        publishedBy: { type: mongoose.Types.ObjectId, ref: 'Admin' },
+        unpublishedBy: { type: mongoose.Types.ObjectId, ref: 'Admin' },
     },
     { timestamps: true }
 );

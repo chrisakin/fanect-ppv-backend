@@ -39,7 +39,7 @@ class NotificationController {
         }
         res.json({ message: 'Notification marked as read', notification });
     } catch (error) {
-        res.status(500).json({ message: 'Server error' });
+        res.status(500).json({ message: 'Something went wrong. Please try again later' });
     }
 }
 }

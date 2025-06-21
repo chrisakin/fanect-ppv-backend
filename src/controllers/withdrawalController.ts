@@ -38,7 +38,7 @@ class WithdrawalController {
 
             res.status(201).json({ message: 'Withdrawal details saved', withdrawal });
         } catch (error) {
-            res.status(500).json({ message: 'Server error' });
+            res.status(500).json({ message: 'Something went wrong. Please try again later' });
         }
     }
 
@@ -48,7 +48,7 @@ class WithdrawalController {
             const withdrawals = await WithdrawalDetails.find({ user: userId }).sort({createdAt: -1});
             res.status(200).json({ message: 'Withdrawal details gotten', withdrawals: withdrawals[0] });
         } catch (error) {
-            res.status(500).json({ message: 'Server error' });
+            res.status(500).json({ message: 'Something went wrong. Please try again later' });
         }
     }
 }

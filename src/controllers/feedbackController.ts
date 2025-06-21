@@ -27,7 +27,7 @@ class FeedbackController {
 
             res.status(201).json({ message: 'Feedback submitted', feedback });
         } catch (error) {
-            res.status(500).json({ message: 'Server error' });
+            res.status(500).json({ message: 'Something went wrong. Please try again later' });
         }
     }
 
@@ -42,7 +42,7 @@ class FeedbackController {
             ]);
             res.json({ feedbacks, average: avg[0]?.avgRating || 0, count: avg[0]?.count || 0 });
         } catch (error) {
-            res.status(500).json({ message: 'Server error' });
+            res.status(500).json({ message: 'Something went wrong. Please try again later' });
         }
     }
 }

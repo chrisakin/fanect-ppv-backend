@@ -8,17 +8,21 @@ export interface IStreampass extends Document {
     paymentMethod: 'flutterwave' | 'stripe';
     paymentReference: string;
     createdAt: Date;
-    isGift: boolean
+    isGift: boolean,
+    hasConverted: boolean;
+    hasUsed: boolean;
 }
 
 const StreampassSchema = new Schema<IStreampass>({
     user: { type: Schema.Types.ObjectId, ref: 'User' },
     firstName: { type: String },
     email: { type: String},
-    isGift: { type: Boolean },
+    isGift: { type: Boolean, default: false },
     event: { type: Schema.Types.ObjectId, ref: 'Event', required: true },
     paymentMethod: { type: String, enum: ['flutterwave', 'stripe'], required: true },
     paymentReference: { type: String, required: true },
+    hasConverted: { type: Boolean, default: false },
+    hasUsed: { type: Boolean, default: false },
     createdAt: { type: Date, default: Date.now }
 });
 

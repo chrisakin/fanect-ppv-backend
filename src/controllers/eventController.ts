@@ -3,7 +3,7 @@ import Event, { Currency, EventStatus } from '../models/Event';
 import s3Service from '../services/s3Service';
 import { paginateAggregate, paginateFind } from '../services/paginationService';
 import { countryToCurrency } from '../types';
-import { createChannel, getStreamKey } from '../services/ivsService';
+import { createChannel, createChatRoom, createChatToken, getStreamKey } from '../services/ivsService';
 import Streampass from '../models/Streampass';
 import mongoose from 'mongoose';
 import { IUser } from '../models/User';
@@ -48,11 +48,7 @@ class EventController {
             if(trailer) {
                 trailerUrl = await s3Service.uploadFile(trailer, 'event-trailers')
             }
-            // Fix and check later
-            //  const channel = await createChannel(name);
-            // if (!channel || !channel.arn) {
-            //     return res.status(500).json({ message: 'Failed to create event' });
-            // }
+           
             const event = new Event({
                 name,
                 date,
@@ -66,15 +62,13 @@ class EventController {
                 broadcastSoftware,
                 scheduledTestDate,
                 createdBy: userId,
-                // ivsChannelArn: channel && channel.arn,
-                // ivsPlaybackUrl: channel && channel.playbackUrl, 
             });
 
             await event.save();
             res.status(201).json({ message: 'Event created successfully', event });
         } catch (error) {
             console.error(error);
-            res.status(500).json({ message: 'Server error' });
+            res.status(500).json({ message: 'Something went wrong. Please try again later' });
         }
     }
 
@@ -94,79 +88,9 @@ class EventController {
             res.status(200).json({ message: 'Events gotten successfully', ...result });
         } catch (error) {
             console.error(error);
-            res.status(500).json({ message: 'Server error' });
+            res.status(500).json({ message: 'Something went wrong. Please try again later' });
         }
     }
-
-//     async getUpcomingEvents(req: Request, res: Response) {
-//     try {
-//         const page = Number(req.query.page) || 1;
-//         const limit = Number(req.query.limit) || 10;
-//         const search = req.query.search as string | undefined;
-//         const now = new Date();
-
-//         const pipeline: any[] = [
-//             {
-//                 $addFields: {
-//                     eventDateTime: {
-//                         $dateFromString: {
-//                             dateString: {
-//                                 $concat: [
-//                                     { $dateToString: { format: "%Y-%m-%d", date: "$date" } },
-//                                     "T",
-//                                     { $cond: [
-//                                         { $eq: [ { $type: "$time" }, "string" ] },
-//                                         "$time",
-//                                         { $dateToString: { format: "%H:%M", date: "$time" } }
-//                                     ]}
-//                                 ]
-//                             }
-//                         }
-//                     }
-//                 }
-//             },
-//             {
-//                 $match: {
-//                     eventDateTime: { $gt: now },
-//                     published: true
-//                 }
-//             }
-//         ];
-
-//         // Add search filter if provided
-//         if (search && search.trim() !== '') {
-//             pipeline.push({
-//                 $match: {
-//                     $or: [
-//                         { name: { $regex: search, $options: 'i' } },
-//                         { description: { $regex: search, $options: 'i' } }
-//                     ]
-//                 }
-//             });
-//         }
-
-//         pipeline.push(
-//             { $sort: { eventDateTime: 1 } },
-//             {
-//                 $project: {
-//                     createdBy: 0,
-//                     createdAt: 0,
-//                     updatedAt: 0,
-//                     published: 0,
-//                     status: 0,
-//                     __v: 0
-//                 }
-//             }
-//         );
-
-//         const result = await paginateAggregate(Event, pipeline, { page, limit });
-
-//         res.status(200).json({ message: 'Events gotten successfully', ...result });
-//     } catch (error) {
-//         console.error(error);
-//         res.status(500).json({ message: 'Server error' });
-//     }
-// }
 
 async getUpcomingEvents(req: Request, res: Response) {
   try {
@@ -254,7 +178,7 @@ async getUpcomingEvents(req: Request, res: Response) {
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later' });
   }
 }
 
@@ -274,7 +198,7 @@ async getUpcomingEvents(req: Request, res: Response) {
             res.status(200).json({ message: 'Events gotten successfully', ...result });
         } catch (error) {
             console.error(error);
-            res.status(500).json({ message: 'Server error' });
+            res.status(500).json({ message: 'Something went wrong. Please try again later' });
         }
     }
 
@@ -294,7 +218,7 @@ async getUpcomingEvents(req: Request, res: Response) {
             res.status(200).json({ message: 'Events gotten successfully', ...result });
         } catch (error) {
             console.error(error);
-            res.status(500).json({ message: 'Server error' });
+            res.status(500).json({ message: 'Something went wrong. Please try again later' });
         }
     }
 
@@ -317,7 +241,7 @@ async getUpcomingEvents(req: Request, res: Response) {
             },});
         } catch (error) {
             console.error(error);
-            res.status(500).json({ message: 'Server error' });
+            res.status(500).json({ message: 'Something went wrong. Please try again later' });
         }
     }
 
@@ -395,53 +319,7 @@ async getUpcomingEvents(req: Request, res: Response) {
             res.status(200).json({ message: 'Event updated successfully', event });
         } catch (error) {
             console.error(error);
-            res.status(500).json({ message: 'Server error' });
-        }
-    }
-
-    async publishEvent(req: Request, res: Response) {
-        const { id } = req.params;
-
-        try {
-            const event = await Event.findById(id);
-            if (!event) {
-                return res.status(404).json({ message: 'Event not found' });
-            }
-
-            if (event.createdBy.toString() !== req.user.id) {
-                return res.status(403).json({ message: 'Unauthorized' });
-            }
-
-            event.published = true;
-            await event.save();
-
-            res.status(200).json({ message: 'Event published successfully', event });
-        } catch (error) {
-            console.error(error);
-            res.status(500).json({ message: 'Server error' });
-        }
-    }
-
-    async unpublishEvent(req: Request, res: Response) {
-        const { id } = req.params;
-
-        try {
-            const event = await Event.findById(id);
-            if (!event) {
-                return res.status(404).json({ message: 'Event not found' });
-            }
-
-            if (event.createdBy.toString() !== req.user.id) {
-                return res.status(403).json({ message: 'Unauthorized' });
-            }
-
-            event.published = false;
-            await event.save();
-
-            res.status(200).json({ message: 'Event unpublished successfully', event });
-        } catch (error) {
-            console.error(error);
-            res.status(500).json({ message: 'Server error' });
+            res.status(500).json({ message: 'Something went wrong. Please try again later' });
         }
     }
 
@@ -468,7 +346,7 @@ async getUpcomingEvents(req: Request, res: Response) {
             res.status(200).json({ message: 'Event deleted successfully' });
         } catch (error) {
             console.error(error);
-            res.status(500).json({ message: 'Server error' });
+            res.status(500).json({ message: 'Something went wrong. Please try again later' });
         }
     }
 
@@ -488,10 +366,11 @@ async getUpcomingEvents(req: Request, res: Response) {
     }
 
     const streamKey = await getStreamKey(event.ivsChannelArn);
+    const chatToken = await createChatToken(event.ivsChatRoomArn, userId, (streampass.user as unknown as IUser)?.firstName)
     if (!streamKey || !streamKey) {
         return res.status(500).json({ message: 'Failed to retrieve stream key' });
     }
-    res.json({ streamKey: streamKey });
+    res.json({ streamKey: streamKey, chatToken: chatToken });
 }
 
 async getPlaybackUrl(req: Request, res: Response) {
@@ -544,7 +423,7 @@ async getPlaybackUrl(req: Request, res: Response) {
         res.status(200).send('OK');
     } catch (error) {
         console.error('IVS Webhook error:', error);
-        res.status(500).json({ message: 'Server error' });
+        res.status(500).json({ message: 'Something went wrong. Please try again later' });
     }
     res.status(200).send('OK');
 }
@@ -1025,7 +904,7 @@ async eventStatistics(req: Request, res: Response)  {
     res.json(result[0]);
   } catch (error) {
     console.error('Error fetching event analytics:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    res.status(500).json({ message: 'Internal Something went wrong. Please try again later' });
   }
 };
 }
