@@ -246,7 +246,7 @@ class AuthController {
         }
 
         try {
-            const decoded: any = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET || 'refresh_secret');
+            const decoded: any = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET as string);
             const user = await User.findById(decoded.id);
 
             if (!user || user.refreshToken !== refreshToken) {
