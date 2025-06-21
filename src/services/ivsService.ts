@@ -1,11 +1,23 @@
 import { IvsClient, CreateChannelCommand, GetStreamKeyCommand, ListChannelsCommand, ListStreamKeysCommand } from "@aws-sdk/client-ivs";
 import { CreateChatTokenCommand, CreateRoomCommand, IvschatClient } from "@aws-sdk/client-ivschat";
 
-const ivs = new IvsClient({ region: process.env.AWS_REGION });
-const ivsChat = new IvschatClient({ region: process.env.AWS_REGION });
+const awsConfig = {
+    region: process.env.AWS_REGION,
+    credentials: {
+        accessKeyId: process.env.AWS_S3_ACCESS_KEYID!,
+        secretAccessKey: process.env.AWS_S3_SECRET_ACCESS_KEY!
+    }
+};
+const ivs = new IvsClient(awsConfig);
+const ivsChat = new IvschatClient(awsConfig);
+
+function sanitizeChannelName(name: string) {
+    return name.replace(/[^a-zA-Z0-9-_]/g, '_');
+}
 
 export async function createChannel(name: string) {
-    const command = new CreateChannelCommand({ name });
+    const safeName = sanitizeChannelName(name);
+    const command = new CreateChannelCommand({ name:safeName });
     const response = await ivs.send(command);
     return response.channel;
 }
@@ -23,7 +35,8 @@ export async function listChannels() {
 }
 
 export async function createChatRoom(eventName: string) {
-    const command = new CreateRoomCommand({ name: eventName });
+    const safeName = sanitizeChannelName(eventName);
+    const command = new CreateRoomCommand({ name: safeName });
     const response = await ivsChat.send(command);
     return response;
 }

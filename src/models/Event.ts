@@ -49,6 +49,7 @@ export interface IEvent extends Document {
     ivsChannelArn: string,
     ivsPlaybackUrl: string, 
     ivsChatRoomArn: string,
+    rejectedBy: mongoose.Types.ObjectId;
 }
 
 export enum EventStatus {
@@ -86,6 +87,7 @@ const EventSchema: Schema = new Schema(
         updatedBy: { type: mongoose.Types.ObjectId, ref: 'User' },
         publishedBy: { type: mongoose.Types.ObjectId, ref: 'Admin' },
         unpublishedBy: { type: mongoose.Types.ObjectId, ref: 'Admin' },
+        rejectedBy: { type: mongoose.Types.ObjectId, ref: 'Admin' },
     },
     { timestamps: true }
 );

@@ -6,8 +6,6 @@ import EmailService from '../../services/emailService';
 import { OAuth2Client } from 'google-auth-library';
 import { getOneAdmin } from '../../services/userService';
 import { verifyAppleIdToken } from '../../services/appleAuthService';
-import Gift from '../../models/Gift';
-import Streampass from '../../models/Streampass';
 import mongoose from 'mongoose';
 import Admin from '../../models/Admin';
 

@@ -23,11 +23,20 @@ const verifyToken = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET as string);
         req['admin'] = decoded;
-        const admin = await Admin.findById(req.admin.id)
-        if(!admin) {
-        return res.status(401).send('Not Authorised');
+
+        let adminId: string | undefined;
+        if (typeof decoded === 'object' && decoded !== null && 'id' in decoded) {
+            adminId = (decoded as any).id;
         }
-        return req['adminData'] = admin
+
+        if (!adminId) {
+            return res.status(401).send('Invalid Token Payload');
+        }
+        const admin = await Admin.findById(adminId);
+        if(!admin) {
+            return res.status(401).send('Not Authorised');
+        }
+        req['adminData'] = admin;
     } catch (err) {
         return res.status(401).send('Invalid Token');
     }

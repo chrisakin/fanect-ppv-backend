@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import authController from '../../controllers/authController';
+import authController from '../../controllers/admin/adminAuthController';
 import verifyToken from '../../middleware/authMiddleware';
 import { exchangeAuthCode } from '../../middleware/googleTokenMiddleware';
 

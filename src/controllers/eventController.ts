@@ -50,7 +50,7 @@ class EventController {
             }
            
             const event = new Event({
-                name,
+                name: name.trim(),
                 date,
                 time,
                 description,
@@ -125,7 +125,8 @@ async getUpcomingEvents(req: Request, res: Response) {
       },
       {
         $match: {
-          eventDateTime: { $gt: now },
+        //   eventDateTime: { $gt: now },
+          status: EventStatus.UPCOMING, 
           published: true,
         },
       },
@@ -894,7 +895,7 @@ async eventStatistics(req: Request, res: Response)  {
     const { eventId } = req.params;
     const { month: selectedMonth, currency: selectedCurrency } = req.query;
     
-    const pipeline: any = this.getEventAnalytics(eventId, selectedMonth as string, selectedCurrency as string);
+    const pipeline: any = await this.getEventAnalytics(eventId, selectedMonth as string, selectedCurrency as string);
     const result = await Event.aggregate(pipeline);
     
     if (result.length === 0) {
