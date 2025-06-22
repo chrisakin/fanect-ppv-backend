@@ -14,7 +14,7 @@ router.get('/:id', EventController.getEventById);
 router.put('/:id',  uploadFields, authMiddleware, EventController.updateEvent);
 router.delete('/:id', authMiddleware, EventController.deleteEvent);
 router.get('/stats/:eventId', authMiddleware, EventController.eventStatistics)
-router.get('/streamkey/:id', authMiddleware, EventController.getStreamKeyForEvent)
-router.get('/playbackurl/:id', authMiddleware, EventController.getPlaybackUrl)
+router.get('/streamkey/:eventId', authMiddleware, EventController.getStreamKeyForEvent)
+router.get('/playbackurl/:eventId', authMiddleware, EventController.getPlaybackUrl)
 router.post('/ivs/webhook', EventController.ivsWebhook)
 export default router;

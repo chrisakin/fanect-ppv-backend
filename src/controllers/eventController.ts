@@ -496,7 +496,6 @@ async getUpcomingEvents(req: Request, res: Response) {
     async getStreamKeyForEvent(req: Request, res: Response) {
     const userId = req.user.id;
     const { eventId } = req.params;
-
     // Check if user has a valid streampass for this event
     const streampass = await Streampass.findOne({ user: userId, event: eventId });
     if (!streampass) {
@@ -513,7 +512,7 @@ async getUpcomingEvents(req: Request, res: Response) {
     if (!streamKey || !streamKey) {
         return res.status(500).json({ message: 'Failed to retrieve stream key' });
     }
-    res.json({ streamKey: streamKey, chatToken: chatToken });
+    res.json({ streamKey: streamKey, chatToken: chatToken, playbackUrl: event.ivsPlaybackUrl, chatRoomArn: event.ivsChatRoomArn });
 }
 
 async getPlaybackUrl(req: Request, res: Response) {
