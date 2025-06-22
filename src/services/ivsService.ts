@@ -1,4 +1,4 @@
-import { IvsClient, CreateChannelCommand, GetStreamKeyCommand, ListChannelsCommand, ListStreamKeysCommand } from "@aws-sdk/client-ivs";
+import { IvsClient, CreateChannelCommand, GetStreamKeyCommand, ListChannelsCommand, ListStreamKeysCommand, ChannelType } from "@aws-sdk/client-ivs";
 import { CreateChatTokenCommand, CreateRoomCommand, IvschatClient } from "@aws-sdk/client-ivschat";
 
 const awsConfig = {
@@ -10,16 +10,20 @@ const awsConfig = {
 };
 const ivs = new IvsClient(awsConfig);
 const ivsChat = new IvschatClient(awsConfig);
-
+const RECORDING_CONFIG_ARN = process.env.RECORDING_CONFIG_ARN;
 function sanitizeChannelName(name: string) {
     return name.replace(/[^a-zA-Z0-9-_]/g, '_');
 }
 
 export async function createChannel(name: string) {
-    const safeName = sanitizeChannelName(name);
-    const command = new CreateChannelCommand({ name:safeName });
-    const response = await ivs.send(command);
-    return response.channel;
+  const safeName = sanitizeChannelName(name);
+  const command = new CreateChannelCommand({
+    name: safeName,
+    type: ChannelType.StandardChannelType,
+    recordingConfigurationArn: RECORDING_CONFIG_ARN, // 🟢 This enables auto-recording
+  });
+  const response = await ivs.send(command);
+  return response.channel;
 }
 
 export async function getStreamKey(channelArn: string) {

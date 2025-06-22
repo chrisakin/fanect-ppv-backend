@@ -5,7 +5,7 @@ import { paginateAggregate, paginateFind } from '../services/paginationService';
 import { countryToCurrency } from '../types';
 import { createChannel, createChatRoom, createChatToken, getStreamKey } from '../services/ivsService';
 import Streampass from '../models/Streampass';
-import mongoose from 'mongoose';
+import mongoose, { Types } from 'mongoose';
 import { IUser } from '../models/User';
 import { sendNotificationToUsers } from '../services/fcmService';
 import EmailService from '../services/emailService';
@@ -366,27 +366,92 @@ async getUpcomingEvents(req: Request, res: Response) {
     }
 
     async getEventById(req: Request, res: Response) {
-        const { id } = req.params;
-         const userCountry = req.country || 'US'; // default fallback
-         const userCurrency = countryToCurrency[userCountry] || Currency.USD;
+  const { id } = req.params;
+  const userId = req.user?.id as string; // from auth middleware
+  const userCountry = req.country || 'US';
+  const userCurrency = countryToCurrency[userCountry] || Currency.USD;
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ message: 'Invalid event ID' });
+  }
 
-        try {
-            const event = await Event.findById(id).select('-createdBy -createdAt -updatedAt -published -status');
-            if (!event) {
-                return res.status(404).json({ message: 'Event not found' });
-            }
-            const priceObj = event.prices.find((p: any) => p.currency === userCurrency || 'USD');
-            const eventObj = event.toObject() as Record<string, any>;
-            delete eventObj.prices;
-            res.status(200).json({message: 'Events gotten successfully', event: {
-                ...eventObj,
-                price: priceObj || null,
-            },});
-        } catch (error) {
-            console.error(error);
-            res.status(500).json({ message: 'Something went wrong. Please try again later' });
+  try {
+    // Aggregate event and check if user has StreamPass
+    const results = await Event.aggregate([
+      { $match: { _id: new mongoose.Types.ObjectId(id) } },
+      {
+        $lookup: {
+          from: 'streampasses',
+          let: { eventId: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$event', '$$eventId'] },
+                    { $eq: ['$user', new Types.ObjectId(userId)] }
+                  ]
+                }
+              }
+            },
+            { $limit: 1 } // optimize
+          ],
+          as: 'userStreamPass'
         }
+      },
+      {
+    $addFields: {
+      hasStreamPass: {
+        $gt: [{ $size: { $ifNull: ['$userStreamPass', []] } }, 0]
+      }
     }
+  },
+      {
+        $project: {
+          adminStatus: 0,
+          broadcastSoftware:0,
+          haveBroadcastRoom: 0,
+          scheduledTestDate:0,
+          ivsChannelArn:0,
+          ivsChatRoomArn: 0,
+          ivsPlaybackUrl:0,
+          publishedBy:0,
+          userStreamPass: 0,
+          createdBy: 0,
+          createdAt: 0,
+          updatedAt: 0,
+          published: 0,
+          status: 0,
+        }
+      }
+    ]);
+
+    if (!results.length) {
+      return res.status(404).json({ message: 'Event not found' });
+    }
+
+    const event = results[0];
+
+    const priceObj = event.prices?.find(
+      (p: any) => p.currency === userCurrency
+    ) || event.prices?.find((p: any) => p.currency === 'USD' || event.prices?.find((p: any) => p.currency === 'NGN' || event.prices[0]));
+
+    delete event.prices;
+
+    return res.status(200).json({
+      message: 'Event fetched successfully',
+      event: {
+        ...event,
+        price: priceObj || null,
+      },
+    });
+
+  } catch (error) {
+    console.error('Get event by ID error:', error);
+    return res.status(500).json({
+      message: 'Something went wrong. Please try again later',
+    });
+  }
+}
 
     async updateEvent(req: Request, res: Response) {
         const { id } = req.params;

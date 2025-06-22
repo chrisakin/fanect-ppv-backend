@@ -572,7 +572,7 @@ async buyStreampass(req: Request, res: Response) {
                         newRoot: {
                             $mergeObjects: [
                                 "$event",
-                                { streampassId: "$_id", paymentMethod: "$paymentMethod", paymentReference: "$paymentReference" }
+                                { streampassId: "$_id", paymentMethod: "$paymentMethod", paymentReference: "$paymentReference", eventDateTime: "$eventDateTime" }
                             ]
                         }
                     }
