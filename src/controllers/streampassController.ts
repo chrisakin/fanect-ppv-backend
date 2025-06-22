@@ -425,7 +425,7 @@ async buyStreampass(req: Request, res: Response) {
                         }
                     }
                 },
-                { $match: { eventDateTime: { $gt: now }, 'event.published': true } },
+                { $match: { 'event.status': EventStatus.UPCOMING, 'event.published': true } },
                 { $sort: { eventDateTime: 1 } },
                 {
                     $replaceRoot: {

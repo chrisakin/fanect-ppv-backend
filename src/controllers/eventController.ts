@@ -185,42 +185,184 @@ async getUpcomingEvents(req: Request, res: Response) {
 
    async getLiveEvents(req: Request, res: Response) {
         try {
-            const page = Number(req.query.page) || 1;
-            const limit = Number(req.query.limit) || 10;
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 10;
+    const search = req.query.search as string | undefined;
+    const now = new Date();
+    const userCountry = req.country || 'US'; // default fallback
+    const userCurrency = countryToCurrency[userCountry] || Currency.USD;
 
-            const result = await paginateFind(
-                Event,
-                { status: EventStatus.LIVE, published: true },
-                { page, limit },
-                { __v: 0, createdBy: 0, createdAt: 0, updatedAt: 0, published: 0, status: 0 },
-                { date: 1, time: 1 }
-            );
+    const pipeline: any[] = [
+      {
+        $addFields: {
+          eventDateTime: {
+            $dateFromString: {
+              dateString: {
+                $concat: [
+                  { $dateToString: { format: '%Y-%m-%d', date: '$date' } },
+                  'T',
+                  {
+                    $cond: [
+                      { $eq: [{ $type: '$time' }, 'string'] },
+                      '$time',
+                      { $dateToString: { format: '%H:%M', date: '$time' } },
+                    ],
+                  },
+                ],
+              },
+            },
+          },
+        },
+      },
+      {
+        $match: {
+        //   eventDateTime: { $gt: now },
+          status: EventStatus.LIVE, 
+          published: true,
+        },
+      },
+    ];
 
-            res.status(200).json({ message: 'Events gotten successfully', ...result });
-        } catch (error) {
-            console.error(error);
-            res.status(500).json({ message: 'Something went wrong. Please try again later' });
-        }
+    if (search && search.trim() !== '') {
+      pipeline.push({
+        $match: {
+          $or: [
+            { name: { $regex: search, $options: 'i' } },
+            { description: { $regex: search, $options: 'i' } },
+          ],
+        },
+      });
+    }
+
+    pipeline.push(
+      { $sort: { eventDateTime: 1 } },
+      {
+        $project: {
+          _id: 1,
+          name: 1,
+          description: 1,
+          eventDateTime: 1,
+          date: 1,
+          time: 1,
+          bannerUrl: 1,
+          location: 1,
+          price: {
+            $arrayElemAt: [
+              {
+                $filter: {
+                  input: '$prices',
+                  as: 'p',
+                  cond: { $eq: ['$$p.currency', userCurrency] },
+                },
+              },
+              0,
+            ],
+          },
+        },
+      }
+    );
+
+    const result = await paginateAggregate(Event, pipeline, { page, limit });
+
+    res.status(200).json({
+      message: 'Events gotten successfully',
+      ...result,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Something went wrong. Please try again later' });
+  }
     }
 
     async getPastEvents(req: Request, res: Response) {
         try {
-            const page = Number(req.query.page) || 1;
-            const limit = Number(req.query.limit) || 10;
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 10;
+    const search = req.query.search as string | undefined;
+    const now = new Date();
+    const userCountry = req.country || 'US'; // default fallback
+    const userCurrency = countryToCurrency[userCountry] || Currency.USD;
 
-            const result = await paginateFind(
-                Event,
-                { status: EventStatus.PAST, published: true },
-                { page, limit },
-                { __v: 0, createdBy: 0, createdAt: 0, updatedAt: 0, published: 0, status: 0 },
-                { date: -1, time: -1 }
-            );
+    const pipeline: any[] = [
+      {
+        $addFields: {
+          eventDateTime: {
+            $dateFromString: {
+              dateString: {
+                $concat: [
+                  { $dateToString: { format: '%Y-%m-%d', date: '$date' } },
+                  'T',
+                  {
+                    $cond: [
+                      { $eq: [{ $type: '$time' }, 'string'] },
+                      '$time',
+                      { $dateToString: { format: '%H:%M', date: '$time' } },
+                    ],
+                  },
+                ],
+              },
+            },
+          },
+        },
+      },
+      {
+        $match: {
+        //   eventDateTime: { $gt: now },
+          status: EventStatus.PAST, 
+          published: true,
+        },
+      },
+    ];
 
-            res.status(200).json({ message: 'Events gotten successfully', ...result });
-        } catch (error) {
-            console.error(error);
-            res.status(500).json({ message: 'Something went wrong. Please try again later' });
-        }
+    if (search && search.trim() !== '') {
+      pipeline.push({
+        $match: {
+          $or: [
+            { name: { $regex: search, $options: 'i' } },
+            { description: { $regex: search, $options: 'i' } },
+          ],
+        },
+      });
+    }
+
+    pipeline.push(
+      { $sort: { eventDateTime: 1 } },
+      {
+        $project: {
+          _id: 1,
+          name: 1,
+          description: 1,
+          eventDateTime: 1,
+          date: 1,
+          time: 1,
+          bannerUrl: 1,
+          location: 1,
+          price: {
+            $arrayElemAt: [
+              {
+                $filter: {
+                  input: '$prices',
+                  as: 'p',
+                  cond: { $eq: ['$$p.currency', userCurrency] },
+                },
+              },
+              0,
+            ],
+          },
+        },
+      }
+    );
+
+    const result = await paginateAggregate(Event, pipeline, { page, limit });
+
+    res.status(200).json({
+      message: 'Events gotten successfully',
+      ...result,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Something went wrong. Please try again later' });
+  }
     }
 
     async getEventById(req: Request, res: Response) {
