@@ -137,7 +137,7 @@ async buyStreampass(req: Request, res: Response) {
           giftedBy: user.firstName,
           year: new Date().getFullYear(),
           paymentDate: new Date(),
-          amount: `${currency} ${amount}`
+          amount: `${currency?.toUpperCase()} ${amount}`
         }
       );
     } else {
@@ -162,7 +162,7 @@ async buyStreampass(req: Request, res: Response) {
           userName: user.firstName,
           paymentReference,
           paymentDate: new Date(),
-          amount: `${currency} ${amount}`,
+          amount: `${currency?.toUpperCase()} ${amount}`,
           year: new Date().getFullYear()
         }
       );
