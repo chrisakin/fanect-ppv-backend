@@ -49,9 +49,9 @@ export async function createChatToken(roomIdentifier: string, userId: string, us
     const command = new CreateChatTokenCommand({
         roomIdentifier,
         userId,
-        attributes: { name: userName },
-        capabilities: ['SEND_MESSAGE', 'DISCONNECT_USER', 'DELETE_MESSAGE'], // adjust as needed
-        sessionDurationInMinutes: 60
+        attributes: { displayName: userName },
+        capabilities: ['SEND_MESSAGE'],
+        sessionDurationInMinutes: 180
     });
     const response = await ivsChat.send(command);
     return response.token;
