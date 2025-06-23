@@ -182,7 +182,7 @@ class AuthController {
 
 
      private generateAccessToken(userId: string, email: string, name: string): string {
-        return jwt.sign({ id: userId, email, name }, process.env.JWT_SECRET || 'secret', { expiresIn: '1h' });
+        return jwt.sign({ id: userId, email, name }, process.env.JWT_SECRET || 'secret', { expiresIn: '5m' });
     }
 
      private generateRefreshToken(userId: string): string {
@@ -248,7 +248,6 @@ class AuthController {
         try {
             const decoded: any = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET as string);
             const user = await User.findById(decoded.id);
-
             if (!user || user.refreshToken !== refreshToken) {
                 return res.status(403).json({ message: 'Invalid refresh token' });
             }
