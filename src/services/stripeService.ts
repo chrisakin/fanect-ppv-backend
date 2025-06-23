@@ -8,12 +8,14 @@ const stripe = new Stripe(STRIPE_SECRET_KEY, {
 
 export async function verifyStripePayment(reference: string): Promise<any> {
     try {
-        const paymentIntent = await stripe.paymentIntents.retrieve(reference);
+        const session = await stripe.checkout.sessions.retrieve(reference);
+        const paymentIntentId = session.payment_intent as string;
+        const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
         if (
             paymentIntent &&
             paymentIntent.status === 'succeeded' 
         ) {
-            const meta = paymentIntent.metadata;
+            const meta = session.metadata;
             const eventId = meta?.eventId;
             const userId = meta?.userId;
             const amount = paymentIntent.amount_received
@@ -40,7 +42,7 @@ export async function createStripeCheckoutSession(currency: string, event: any, 
                 line_items: [
                     {
                         price_data: {
-                            currency: currency,
+                            currency: currency.toLowerCase(),
                             product_data: {
                                 name: event.name,
                                 description: event.description,
