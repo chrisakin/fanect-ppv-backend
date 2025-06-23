@@ -18,7 +18,7 @@ export async function verifyStripePayment(reference: string): Promise<any> {
             const meta = session.metadata;
             const eventId = meta?.eventId;
             const userId = meta?.userId;
-            const amount = paymentIntent.amount_received
+            const amount = paymentIntent.amount_received / 100
             const friends = meta?.friends && JSON.parse(meta?.friends)
             const currency = meta?.currency
             return { success: true, eventId, userId, amount, friends, currency};
