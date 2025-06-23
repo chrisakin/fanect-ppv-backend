@@ -50,6 +50,8 @@ export interface IEvent extends Document {
     ivsPlaybackUrl: string, 
     ivsChatRoomArn: string,
     rejectedBy: mongoose.Types.ObjectId;
+    startedEventBy: mongoose.Types.ObjectId
+    endedEventBy: mongoose.Types.ObjectId
 }
 
 export enum EventStatus {
@@ -88,6 +90,8 @@ const EventSchema: Schema = new Schema(
         publishedBy: { type: mongoose.Types.ObjectId, ref: 'Admin' },
         unpublishedBy: { type: mongoose.Types.ObjectId, ref: 'Admin' },
         rejectedBy: { type: mongoose.Types.ObjectId, ref: 'Admin' },
+        startedEventBy: { type: mongoose.Types.ObjectId, ref: 'Admin' },
+        endedEventBy: { type: mongoose.Types.ObjectId, ref: 'Admin' },
     },
     { timestamps: true }
 );

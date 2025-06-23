@@ -581,6 +581,8 @@ async getUpcomingEvents(req: Request, res: Response) {
     res.json({ streamKey: streamKey, chatToken: chatToken, playbackUrl: event.ivsPlaybackUrl, chatRoomArn: event.ivsChatRoomArn });
 }
 
+
+
 async getPlaybackUrl(req: Request, res: Response) {
     const userId = req.user.id;
     const { eventId } = req.params;
