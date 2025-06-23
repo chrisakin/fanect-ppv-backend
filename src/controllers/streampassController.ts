@@ -57,7 +57,7 @@ async buyStreampass(req: Request, res: Response) {
     if (!event) return res.status(404).json({ message: 'Event not found' });
 
     const priceObj = event.prices.find((p: any) => p.currency.toLowerCase() === currency?.toLowerCase());
-    const expectedAmount = paymentMethod === 'stripe' ? Math.round(Number(priceObj?.amount) * 100) : priceObj?.amount;
+    const expectedAmount =  priceObj?.amount;
     if (amount != expectedAmount) return res.status(400).json({ message: 'Payment Not verified. Please contact customer care.' });
 
     const user = await getOneUser(userId as string, res);
