@@ -52,6 +52,7 @@ export interface IEvent extends Document {
     rejectedBy: mongoose.Types.ObjectId;
     startedEventBy: mongoose.Types.ObjectId
     endedEventBy: mongoose.Types.ObjectId
+    canWatchSavedStream: boolean
 }
 
 export enum EventStatus {
@@ -80,6 +81,7 @@ const EventSchema: Schema = new Schema(
         adminStatus: { type: String, default: AdminStatus.PENDING },
         createdBy: { type: mongoose.Types.ObjectId, ref: 'User', required: true },
         haveBroadcastRoom: { type: Boolean, required: true},
+        canWatchSavedStream: { type: Boolean, default: false},
         broadcastSoftware: { type: String, required: true },
         scheduledTestDate: { type: Date, required: true },
         trailerUrl: { type: String },

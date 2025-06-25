@@ -3,6 +3,7 @@ import Notification from '../models/Notifications';
 import User from '../models/User';
 import { paginateAggregate } from './paginationService';
 import serviceAccount from '../config/fanect-ppv-df7d7-firebase-adminsdk-fbsvc-e76319a67d.json';
+import mongoose from 'mongoose';
 
 admin.initializeApp({
     credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
@@ -60,7 +61,7 @@ export async function markNotificationAsRead(userId: string, notificationId: str
 
 export async function getUserNotifications(userId: string, page = 1, limit = 10) {
     const pipeline: any = [
-        { $match: { user: userId } },
+        { $match: { user: new mongoose.Types.ObjectId(userId )} },
         { $sort: { createdAt: -1 } }
     ];
     return paginateAggregate(Notification, pipeline, { page, limit });

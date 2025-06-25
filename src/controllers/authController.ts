@@ -33,17 +33,17 @@ class AuthController {
     }
 
     async register(req: Request, res: Response) {
-        const { email, password, firstName, lastName } = req.body;
+        const { email, password, firstName, lastName, userName } = req.body;
 
         try {
-            if(!email || !password || !firstName || !lastName) {
+            if(!email || !password || !firstName || !lastName || !userName) {
                 return res.status(400).json({ message: 'All fields are required' });
             }
             const existingUser = await User.findOne({ email });
             if (existingUser) {
                 return res.status(400).json({ message: 'User already exists' });
             }
-            const username = email.split('@')[0]; // Use part of the email as username
+            const username = userName || email.split('@')[0]; // Use part of the email as username
             const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
             if (!isEmailValid) {
                 return res.status(400).json({ message: 'Invalid email format' });

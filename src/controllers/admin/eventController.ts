@@ -7,6 +7,10 @@ import { sendNotificationToUsers } from '../../services/fcmService';
 import EmailService from '../../services/emailService';
 
 class EventController {
+    constructor() {
+        this.updateEventSession = this.updateEventSession.bind(this)
+        this.notifyEventStatus = this.notifyEventStatus.bind(this)
+    }
   async publishEvent(req: Request, res: Response) {
         const { id } = req.params;
 
@@ -98,6 +102,9 @@ class EventController {
                 return res.status(404).json({ message: 'Event has not been approved ' });
             }
 
+            if(!session) {
+                return res.status(404).json({message: 'Session is reuired'})
+            }
                if (session === 'stream-start') {
                     event.status = EventStatus.LIVE;
                     event.startedEventBy = req.admin.id
@@ -109,7 +116,7 @@ class EventController {
                     await event.save();
                     await this.notifyEventStatus(event, EventStatus.PAST);
                 }
-            res.status(200).json({ message: 'Event published successfully', event });
+            res.status(200).json({ message: 'Event session updated successfully', event });
         } catch (error) {
             console.error(error);
             res.status(500).json({ message: 'Something went wrong. Please try again later' });
@@ -119,8 +126,9 @@ class EventController {
 async notifyEventStatus(eventDoc: any, status: EventStatus) {
     // Find all users with a streampass for this event
     const streampasses = await Streampass.find({ event: eventDoc._id }).populate('user');
-    const users = streampasses.map(sp => sp.user) as unknown as IUser[];
-
+    const users = streampasses
+        .filter(sp => sp?.user)
+        .map(sp => sp.user) as unknown as IUser[];
     // Prepare notification details
     const eventName = eventDoc.name;
     const eventDate = new Date(eventDoc.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });

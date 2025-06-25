@@ -190,6 +190,7 @@ async getUpcomingEvents(req: Request, res: Response) {
     const limit = Number(req.query.limit) || 10;
     const search = req.query.search as string | undefined;
     const now = new Date();
+    const userId = req.user?.id as string; 
     const userCountry = req.country || 'US'; // default fallback
     const userCurrency = countryToCurrency[userCountry] || Currency.USD;
 
@@ -222,6 +223,33 @@ async getUpcomingEvents(req: Request, res: Response) {
           published: true,
         },
       },
+      {
+        $lookup: {
+          from: 'streampasses',
+          let: { eventId: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$event', '$$eventId'] },
+                    { $eq: ['$user', new Types.ObjectId(userId)] }
+                  ]
+                }
+              }
+            },
+            { $limit: 1 } // optimize
+          ],
+          as: 'userStreamPass'
+        }
+      },
+      {
+    $addFields: {
+      hasStreamPass: {
+        $gt: [{ $size: { $ifNull: ['$userStreamPass', []] } }, 0]
+      }
+    }
+  },
     ];
 
     if (search && search.trim() !== '') {
@@ -247,6 +275,7 @@ async getUpcomingEvents(req: Request, res: Response) {
           time: 1,
           bannerUrl: 1,
           location: 1,
+          hasStreamPass: 1,
           price: {
             $arrayElemAt: [
               {
@@ -593,6 +622,26 @@ async getPlaybackUrl(req: Request, res: Response) {
     }
 
     const event = await Event.findById(eventId);
+    if (!event || !event.ivsChannelArn) {
+        return res.status(404).json({ message: 'Event or IVS channel not found' });
+    }
+    // IVS playback URL format: https://{playbackUrl}/index.m3u8
+    res.json({ playbackUrl: event.ivsPlaybackUrl });
+ }
+
+ async getPastStreamUrl(req: Request, res: Response) {
+    const userId = req.user.id;
+    const { eventId } = req.params;
+
+    const streampass = await Streampass.findOne({ user: userId, event: eventId });
+    if (!streampass) {
+        return res.status(403).json({ message: 'No access to this event' });
+    }
+
+    const event = await Event.findById(eventId);
+    if(!event?.canWatchSavedStream) {
+      return res.status(404).json({ message: 'Event not available for rewatching' });
+    }
     if (!event || !event.ivsChannelArn) {
         return res.status(404).json({ message: 'Event or IVS channel not found' });
     }
