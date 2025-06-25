@@ -10,6 +10,7 @@ admin.initializeApp({
 });
 
 export async function saveDeviceToken(userId: string, token: string) {
+    await verifyDeviceToken(token)
     return await User.findByIdAndUpdate(userId, { $addToSet: { deviceTokens: token } });
 }
 
@@ -20,7 +21,8 @@ export async function verifyDeviceToken(token: string) {
             notification: { title: 'Token Verification', body: 'This is a test.' }
         });
         return !!response;
-    } catch {
+    } catch (error: any) {
+        console.log(error)
         return false;
     }
 }
