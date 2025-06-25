@@ -603,7 +603,7 @@ async getUpcomingEvents(req: Request, res: Response) {
     }
 
     const streamKey = await getStreamKey(event.ivsChannelArn);
-    const chatToken = await createChatToken(event.ivsChatRoomArn, userId, (streampass.user as unknown as IUser)?.firstName)
+    const chatToken = await createChatToken(event.ivsChatRoomArn, userId, (streampass.user as unknown as IUser)?.username)
     if (!streamKey || !streamKey) {
         return res.status(500).json({ message: 'Failed to retrieve stream key' });
     }
