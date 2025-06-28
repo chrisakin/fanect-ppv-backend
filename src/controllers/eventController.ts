@@ -10,6 +10,7 @@ import { IUser } from '../models/User';
 import { sendNotificationToUsers } from '../services/fcmService';
 import EmailService from '../services/emailService';
 import { getEventAnalytics } from '../services/analyticsService';
+import axios from 'axios';
 
 class EventController {
     async createEvent(req: Request, res: Response) {
@@ -649,42 +650,103 @@ async getPlaybackUrl(req: Request, res: Response) {
     res.json({ playbackUrl: event.ivsPlaybackUrl });
  }
 
-    async ivsWebhook(req: Request, res: Response) {
-       try {
-        // IVS sends events as JSON in the body
-        const { event, channel_arn } = req.body;
+//     async ivsWebhook(req: Request, res: Response) {
+//        try {
+//         // IVS sends events as JSON in the body
+//         const { event, channel_arn } = req.body;
 
-        // Log the event for debugging
-        console.log('IVS Webhook received:', req.body);
+//         // Log the event for debugging
+//         console.log('IVS Webhook received:', req.body);
 
-        // Find the event by IVS channel ARN
-        const eventDoc = await Event.findOne({ ivsChannelArn: channel_arn });
-        if (!eventDoc) {
-            return res.status(404).json({ message: 'Event not found for this channel ARN' });
-        }
+//         // Find the event by IVS channel ARN
+//         const eventDoc = await Event.findOne({ ivsChannelArn: channel_arn });
+//         if (!eventDoc) {
+//             return res.status(404).json({ message: 'Event not found for this channel ARN' });
+//         }
 
-        // Handle stream start and end
-        if (event === 'stream-start') {
-            eventDoc.status = EventStatus.LIVE;
-            await eventDoc.save();
-             await this.notifyEventStatus(eventDoc, EventStatus.LIVE);
+//         // Handle stream start and end
+//         if (event === 'stream-start') {
+//             eventDoc.status = EventStatus.LIVE;
+//             await eventDoc.save();
+//              await this.notifyEventStatus(eventDoc, EventStatus.LIVE);
 
-            // Optionally: notify users here
-        } else if (event === 'stream-end') {
-            eventDoc.status = EventStatus.PAST;
-            await eventDoc.save();
-            await this.notifyEventStatus(eventDoc, EventStatus.PAST);
-            // Optionally: notify users here
-        }
+//             // Optionally: notify users here
+//         } else if (event === 'stream-end') {
+//             eventDoc.status = EventStatus.PAST;
+//             await eventDoc.save();
+//             await this.notifyEventStatus(eventDoc, EventStatus.PAST);
+//             // Optionally: notify users here
+//         }
 
-        // You can handle other IVS events here if needed
+//         // You can handle other IVS events here if needed
 
-        res.status(200).send('OK');
-    } catch (error) {
-        console.error('IVS Webhook error:', error);
-        res.status(500).json({ message: 'Something went wrong. Please try again later' });
+//         res.status(200).send('OK');
+//     } catch (error) {
+//         console.error('IVS Webhook error:', error);
+//         res.status(500).json({ message: 'Something went wrong. Please try again later' });
+//     }
+//     res.status(200).send('OK');
+// }
+
+async ivsWebhook(req: Request, res: Response) {
+    let message;
+  try {
+    message = JSON.parse(req.body);
+  } catch (err) {
+    console.error("Failed to parse SNS message", err);
+    return res.status(400).send("Bad request");
+  }
+
+  console.log("📨 SNS Message Received:", message);
+
+  // 1️⃣ Handle subscription confirmation
+  if (message.Type === "SubscriptionConfirmation") {
+    const subscribeUrl = message.SubscribeURL;
+    console.log("🔔 Confirming SNS subscription:", subscribeUrl);
+    try {
+      await axios.get(subscribeUrl);
+      console.log("✅ SNS subscription confirmed.");
+      return res.send("Subscription confirmed");
+    } catch (err) {
+      console.error("❌ Failed to confirm subscription:", err);
+      return res.status(500).send("Error confirming subscription");
     }
-    res.status(200).send('OK');
+  }
+
+  // 2️⃣ Handle notification
+  if (message.Type === "Notification") {
+    const detail = JSON.parse(message.Message);
+
+    // Example detail:
+    // {
+    //   "version": "0",
+    //   "id": "....",
+    //   "detail-type": "IVS Recording State Change",
+    //   "source": "aws.ivs",
+    //   ...
+    //   "detail": {
+    //     "recording_state": "RecordingEnded",
+    //     "s3_recording_prefix": "ivs/channel-id/yyyy/mm/dd/hh-mm-ss/"
+    //   }
+    // }
+
+    if (
+      detail["detail-type"] === "IVS Recording State Change" &&
+      detail.detail.recording_state === "RecordingEnded"
+    ) {
+      const prefix = detail.detail.s3_recording_prefix;
+      const channelArn = detail.detail.channel_arn;
+
+      // Construct the playback URL (replace with your bucket)
+      const playbackUrl = `https://YOUR_BUCKET_NAME.s3.amazonaws.com/${prefix}index.m3u8`;
+
+      console.log(`🎬 New recording ready: ${playbackUrl}`, channelArn);
+
+      // TODO: Save playbackUrl to your database here
+    }
+  }
+
+  res.send("OK");
 }
 
 async notifyEventStatus(eventDoc: any, status: EventStatus) {
