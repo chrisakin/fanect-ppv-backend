@@ -18,5 +18,6 @@ router.delete('/:id', authMiddleware, EventController.deleteEvent);
 router.get('/stats/:eventId', authMiddleware, EventController.eventStatistics)
 router.get('/streamkey/:eventId', authMiddleware, EventController.getStreamKeyForEvent)
 router.get('/playbackurl/:eventId', authMiddleware, EventController.getPlaybackUrl)
+router.get('/savedbroadcasturl/:eventId', authMiddleware, EventController.getSavedbroadcastUrl)
 router.post('/ivs/webhook', express.text({ type: "*/*" }), EventController.ivsWebhook)
 export default router;

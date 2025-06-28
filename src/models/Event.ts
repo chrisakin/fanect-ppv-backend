@@ -47,7 +47,8 @@ export interface IEvent extends Document {
     status: EventStatus,
     adminStatus: AdminStatus;
     ivsChannelArn: string,
-    ivsPlaybackUrl: string, 
+    ivsPlaybackUrl: string,
+    ivsSavedBroadcastUrl: string, 
     ivsChatRoomArn: string,
     rejectedBy: mongoose.Types.ObjectId;
     startedEventBy: mongoose.Types.ObjectId
@@ -88,6 +89,7 @@ const EventSchema: Schema = new Schema(
         ivsChannelArn: { type: String },
         ivsPlaybackUrl: { type: String },
         ivsChatRoomArn: { type: String },
+        ivsSavedBroadcastUrl: { type: String },
         updatedBy: { type: mongoose.Types.ObjectId, ref: 'User' },
         publishedBy: { type: mongoose.Types.ObjectId, ref: 'Admin' },
         unpublishedBy: { type: mongoose.Types.ObjectId, ref: 'Admin' },

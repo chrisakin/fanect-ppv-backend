@@ -1,5 +1,9 @@
 import { IvsClient, CreateChannelCommand, GetStreamKeyCommand, ListChannelsCommand, ListStreamKeysCommand, ChannelType } from "@aws-sdk/client-ivs";
 import { CreateChatTokenCommand, CreateRoomCommand, IvschatClient } from "@aws-sdk/client-ivschat";
+import {
+  S3Client,
+  ListObjectsV2Command
+} from "@aws-sdk/client-s3";
 
 const awsConfig = {
     region: process.env.AWS_REGION,
@@ -11,6 +15,8 @@ const awsConfig = {
 const ivs = new IvsClient(awsConfig);
 const ivsChat = new IvschatClient(awsConfig);
 const RECORDING_CONFIG_ARN = process.env.RECORDING_CONFIG_ARN;
+const s3 = new S3Client(awsConfig);
+
 function sanitizeChannelName(name: string) {
     return name.replace(/[^a-zA-Z0-9-_]/g, '_');
 }
@@ -55,4 +61,32 @@ export async function createChatToken(roomIdentifier: string, userId: string, us
     });
     const response = await ivsChat.send(command);
     return response.token;
+}
+
+export async function getSavedBroadCastUrl(channelArn: string) {
+const parts = channelArn.split("/");
+const channelId = parts[parts.length - 1];
+const prefix = `ivs/${channelId}/`;
+
+const command = new ListObjectsV2Command({
+  Bucket: "fanect-ppv-autorecording",
+  Prefix: prefix,
+});
+const BUCKET_NAME="fanect-ppv-autorecording"
+const result = await s3.send(command);
+ const recording: any = result.Contents?.find((obj: any) =>
+    obj.Key.endsWith("index.m3u8")
+  );
+    if (!recording) {
+    console.log({
+      error: "No recording found yet in S3.",
+    });
+  }
+
+  const playbackUrl = `https://${BUCKET_NAME}.s3.amazonaws.com/${recording?.Key}`;
+  console.log(channelArn, 'Channel ARN')
+  console.log(channelId, 'channed Id')
+  console.log(playbackUrl, 'Saved Url')
+  return playbackUrl
+
 }

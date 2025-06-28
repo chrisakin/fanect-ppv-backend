@@ -630,7 +630,7 @@ async getPlaybackUrl(req: Request, res: Response) {
     res.json({ playbackUrl: event.ivsPlaybackUrl });
  }
 
- async getPastStreamUrl(req: Request, res: Response) {
+ async getSavedbroadcastUrl(req: Request, res: Response) {
     const userId = req.user.id;
     const { eventId } = req.params;
 
@@ -640,15 +640,16 @@ async getPlaybackUrl(req: Request, res: Response) {
     }
 
     const event = await Event.findById(eventId);
-    if(!event?.canWatchSavedStream) {
+    if (!event || !event.ivsChannelArn) {
+      return res.status(404).json({ message: 'Event or IVS channel not found' });
+    }
+     if(!event?.canWatchSavedStream) {
       return res.status(404).json({ message: 'Event not available for rewatching' });
     }
-    if (!event || !event.ivsChannelArn) {
-        return res.status(404).json({ message: 'Event or IVS channel not found' });
-    }
     // IVS playback URL format: https://{playbackUrl}/index.m3u8
-    res.json({ playbackUrl: event.ivsPlaybackUrl });
+    res.json({ savedBroadcastUrl: event.ivsSavedBroadcastUrl });
  }
+
 
 //     async ivsWebhook(req: Request, res: Response) {
 //        try {

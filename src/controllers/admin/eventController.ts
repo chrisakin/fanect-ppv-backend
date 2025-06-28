@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import Event, { AdminStatus, EventStatus } from '../../models/Event';
-import { createChannel, createChatRoom } from '../../services/ivsService';
+import { createChannel, createChatRoom, getSavedBroadCastUrl } from '../../services/ivsService';
 import Streampass from '../../models/Streampass';
 import { IUser } from '../../models/User';
 import { sendNotificationToUsers } from '../../services/fcmService';
@@ -111,8 +111,13 @@ class EventController {
                     await event.save();
                      await this.notifyEventStatus(event, EventStatus.LIVE);
                 } else if (session === 'stream-end') {
+                    const url = await getSavedBroadCastUrl(event.ivsChannelArn)
+                    if(!url) {
+                        return res.status(404).json({ message: 'Broadcast url has not been saved. Retry again after 10 mins.' });
+                    }
                     event.status = EventStatus.PAST;
                     event.endedEventBy = req.admin.id
+                    event.ivsSavedBroadcastUrl = url
                     await event.save();
                     await this.notifyEventStatus(event, EventStatus.PAST);
                 }
