@@ -691,7 +691,7 @@ async getPlaybackUrl(req: Request, res: Response) {
 async ivsWebhook(req: Request, res: Response) {
     let message;
   try {
-    message = JSON.parse(req.body);
+    message = req.body;
   } catch (err) {
     console.error("Failed to parse SNS message", err);
     return res.status(400).send("Bad request");
