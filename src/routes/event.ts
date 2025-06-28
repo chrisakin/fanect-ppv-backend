@@ -2,6 +2,7 @@ import { Router } from 'express';
 import EventController from '../controllers/eventController';
 import authMiddleware from '../middleware/authMiddleware';
 import { uploadFields } from '../middleware/multerMiddleware';
+import express from 'express';
 
 const router = Router();
 
@@ -17,5 +18,5 @@ router.delete('/:id', authMiddleware, EventController.deleteEvent);
 router.get('/stats/:eventId', authMiddleware, EventController.eventStatistics)
 router.get('/streamkey/:eventId', authMiddleware, EventController.getStreamKeyForEvent)
 router.get('/playbackurl/:eventId', authMiddleware, EventController.getPlaybackUrl)
-router.post('/ivs/webhook', EventController.ivsWebhook)
+router.post('/ivs/webhook', express.text({ type: "*/*" }), EventController.ivsWebhook)
 export default router;
