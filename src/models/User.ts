@@ -19,7 +19,7 @@ export interface IUser extends Document {
     deviceTokens: string[];
     isDeleted?: boolean;
     appleId?: string;
-    sessionToken: string;
+    sessionToken: string | undefined;
 }
 
 const UserSchema: Schema = new Schema({
