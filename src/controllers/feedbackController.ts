@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import Feedback from '../models/Feedback';
 import { Request, Response } from 'express';
+import User, { IUser } from '../models/User';
 
 class FeedbackController {
     async submitFeedback(req: Request, res: Response) {
@@ -17,9 +18,10 @@ class FeedbackController {
             if (existing) {
                 return res.status(400).json({ message: 'You have already submitted feedback for this event.' });
             }
-
+            const userName = (await User.findById(userId) as IUser).firstName
             const feedback = await Feedback.create({
                 user: userId,
+                userName,
                 event: eventId,
                 ratings,
                 comments

@@ -11,6 +11,7 @@ import { sendNotificationToUsers } from '../services/fcmService';
 import EmailService from '../services/emailService';
 import { getEventAnalytics } from '../services/analyticsService';
 import axios from 'axios';
+import Views from '../models/Views';
 
 class EventController {
     async createEvent(req: Request, res: Response) {
@@ -608,6 +609,14 @@ async getUpcomingEvents(req: Request, res: Response) {
     if (!streamKey || !streamKey) {
         return res.status(500).json({ message: 'Failed to retrieve stream key' });
     }
+  const savedViews = await Views.findOne({user: userId, event: eventId, type: "live"})
+  if(!savedViews) {
+    await Views.create({
+    user: userId,
+    event: eventId,
+    type: "live"
+  })
+  }
     res.json({ streamKey: streamKey, chatToken: chatToken, playbackUrl: event.ivsPlaybackUrl, chatRoomArn: event.ivsChatRoomArn });
 }
 
@@ -640,13 +649,21 @@ async getPlaybackUrl(req: Request, res: Response) {
     }
 
     const event = await Event.findById(eventId);
+
     if (!event || !event.ivsChannelArn) {
       return res.status(404).json({ message: 'Event or IVS channel not found' });
     }
      if(!event?.canWatchSavedStream) {
       return res.status(404).json({ message: 'Event not available for rewatching' });
     }
-    // IVS playback URL format: https://{playbackUrl}/index.m3u8
+  const savedViews = await Views.findOne({user: userId, event: eventId, type: "replay"})
+  if(!savedViews) {
+    await Views.create({
+    user: userId,
+    event: eventId,
+    type: "replay"
+  })
+}
     res.json({ savedBroadcastUrl: event.ivsSavedBroadcastUrl });
  }
 

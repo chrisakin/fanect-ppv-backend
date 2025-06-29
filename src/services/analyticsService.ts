@@ -23,7 +23,7 @@ export async function getEventAnalytics(eventId: string, selectedMonth?: string,
     },
     {
       $lookup: {
-        from: 'vieweranalytics',
+        from: 'views',
         localField: '_id',
         foreignField: 'event',
         as: 'viewerData',
@@ -119,7 +119,7 @@ export async function getEventAnalytics(eventId: string, selectedMonth?: string,
 
         // Ratings
         ratings: {
-          avg: { $avg: "$ratings.rating" },
+          avg: { $avg: "$ratings.ratings" },
           count: { $size: "$ratings" },
           breakdown: {
             $arrayToObject: {
@@ -133,7 +133,7 @@ export async function getEventAnalytics(eventId: string, selectedMonth?: string,
                       $filter: {
                         input: "$ratings",
                         as: "rating",
-                        cond: { $eq: ["$$rating.rating", "$$star"] }
+                        cond: { $eq: ["$$rating.ratings", "$$star"] }
                       }
                     }
                   }
@@ -157,14 +157,14 @@ export async function getEventAnalytics(eventId: string, selectedMonth?: string,
                   $filter: {
                     input: "$ratings",
                     as: "r",
-                    cond: { $ne: ["$$r.comment", null] }
+                    cond: { $ne: ["$$r.comments", null] }
                   }
                 },
                 as: "f",
                 in: {
                   id: { $toString: "$$f._id" },
-                  comment: "$$f.comment",
-                  rating: "$$f.rating",
+                  comment: "$$f.comments",
+                  rating: "$$f.ratings",
                   userName: "$$f.userName",
                   createdAt: "$$f.createdAt"
                 }

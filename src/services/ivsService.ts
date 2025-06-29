@@ -66,27 +66,37 @@ export async function createChatToken(roomIdentifier: string, userId: string, us
 export async function getSavedBroadCastUrl(channelArn: string) {
 const parts = channelArn.split("/");
 const channelId = parts[parts.length - 1];
-const prefix = `ivs/${channelId}/`;
-
+const partsId = channelArn.split(":");
+const accountId = partsId[4];
+const prefix = `ivs/v1/${accountId}/${channelId}/`;
+const BUCKET_NAME="fanect-ppv-autorecording"
 const command = new ListObjectsV2Command({
-  Bucket: "fanect-ppv-autorecording",
+  Bucket: BUCKET_NAME,
   Prefix: prefix,
 });
-const BUCKET_NAME="fanect-ppv-autorecording"
 const result = await s3.send(command);
- const recording: any = result.Contents?.find((obj: any) =>
-    obj.Key.endsWith("index.m3u8")
-  );
+ const multivariantFiles = result.Contents?.filter((obj: any) =>
+  obj.Key.endsWith("byte-range-multivariant.m3u8")
+);
+  if (multivariantFiles && multivariantFiles.length === 0) {
+    console.log({
+      error: "No multivariant playlists found in S3.",
+    });
+    return null;
+  }
+  console.log(multivariantFiles)
+const sorted = multivariantFiles?.sort(
+  (a: any, b: any) => new Date(b.LastModified).getTime() - new Date(a.LastModified).getTime()
+);
+const recording: any = sorted?.[0];
     if (!recording) {
     console.log({
       error: "No recording found yet in S3.",
     });
   }
-
-  const playbackUrl = `https://${BUCKET_NAME}.s3.amazonaws.com/${recording?.Key}`;
+  const playbackUrl =recording?.Key ? `https://${BUCKET_NAME}.s3.amazonaws.com/${recording?.Key}` : undefined;
   console.log(channelArn, 'Channel ARN')
   console.log(channelId, 'channed Id')
   console.log(playbackUrl, 'Saved Url')
   return playbackUrl
-
 }
