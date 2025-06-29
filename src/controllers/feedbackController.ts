@@ -5,7 +5,7 @@ import { Request, Response } from 'express';
 class FeedbackController {
     async submitFeedback(req: Request, res: Response) {
         const userId = req.user.id;
-        const { eventId, ratings, comment } = req.body;
+        const { eventId, ratings, comments } = req.body;
 
         if (!eventId || !ratings) {
             return res.status(400).json({ message: 'Event and ratings are required' });
@@ -22,7 +22,7 @@ class FeedbackController {
                 user: userId,
                 event: eventId,
                 ratings,
-                comment
+                comments
             });
 
             res.status(201).json({ message: 'Feedback submitted', feedback });
