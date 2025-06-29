@@ -10,7 +10,7 @@ admin.initializeApp({
 });
 
 export async function saveDeviceToken(userId: string, token: string) {
-    await verifyDeviceToken(token)
+   // await verifyDeviceToken(token)
     return await User.findByIdAndUpdate(userId, { $addToSet: { deviceTokens: token } });
 }
 
