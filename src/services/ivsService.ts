@@ -1,4 +1,4 @@
-import { IvsClient, CreateChannelCommand, GetStreamKeyCommand, ListChannelsCommand, ListStreamKeysCommand, ChannelType } from "@aws-sdk/client-ivs";
+import { IvsClient, CreateChannelCommand, GetStreamKeyCommand, ListChannelsCommand, ListStreamKeysCommand, ChannelType, CreateStreamKeyCommand } from "@aws-sdk/client-ivs";
 import { CreateChatTokenCommand, CreateRoomCommand, IvschatClient } from "@aws-sdk/client-ivschat";
 import {
   S3Client,
@@ -30,6 +30,12 @@ export async function createChannel(name: string) {
   });
   const response = await ivs.send(command);
   return response.channel;
+}
+
+export async function createStreamKey(channelArn: string) {
+  const command = new CreateStreamKeyCommand({ channelArn });
+  const response = await ivs.send(command);
+  return response.streamKey?.value;
 }
 
 export async function getStreamKey(channelArn: string) {

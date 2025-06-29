@@ -3,7 +3,7 @@ import Event, { Currency, EventStatus } from '../models/Event';
 import s3Service from '../services/s3Service';
 import { paginateAggregate, paginateFind } from '../services/paginationService';
 import { countryToCurrency } from '../types';
-import { createChannel, createChatRoom, createChatToken, getStreamKey } from '../services/ivsService';
+import { createChatToken, getStreamKey } from '../services/ivsService';
 import Streampass from '../models/Streampass';
 import mongoose, { Types } from 'mongoose';
 import { IUser } from '../models/User';

@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import Event, { AdminStatus, EventStatus } from '../../models/Event';
-import { createChannel, createChatRoom, getSavedBroadCastUrl } from '../../services/ivsService';
+import { createChannel, createChatRoom, createStreamKey, getSavedBroadCastUrl } from '../../services/ivsService';
 import Streampass from '../../models/Streampass';
 import { IUser } from '../../models/User';
 import { sendNotificationToUsers } from '../../services/fcmService';
@@ -20,13 +20,14 @@ class EventController {
                 return res.status(404).json({ message: 'Event not found' });
             }
             if(event.published) {
-                return res.status(404).json({ message: 'Event has is already published' });
+                return res.status(404).json({ message: 'Event is already published' });
             }
 
             const channel = await createChannel(event.name);
             if (!channel || !channel.arn) {
                return res.status(500).json({ message: 'Failed to create event' });
             }
+            const streamKey = await createStreamKey(channel.arn)
             const chat = await createChatRoom(event.name);
             if(!chat || !chat.arn) {
                return res.status(500).json({ message: 'Failed to create event' });
@@ -36,8 +37,10 @@ class EventController {
             event.adminStatus = AdminStatus.APPROVED
             event.publishedBy = req.admin.id
             event.ivsChannelArn = channel && channel.arn,
-            event.ivsPlaybackUrl = channel && channel.playbackUrl ? channel.playbackUrl : "", 
+            event.ivsPlaybackUrl = channel && channel.playbackUrl ? channel.playbackUrl : undefined, 
             event.ivsChatRoomArn = chat.arn,
+            event.ivsIngestEndpoint = channel && channel.ingestEndpoint ? channel.ingestEndpoint : undefined
+            event.ivsIngestStreamKey = channel && streamKey ? streamKey : undefined
             await event.save();
 
             res.status(200).json({ message: 'Event published successfully', event });
