@@ -42,6 +42,19 @@ class NotificationController {
         res.status(500).json({ message: 'Something went wrong. Please try again later' });
     }
 }
+
+    async markAllRead(req: Request, res: Response) {
+    const userId = req.user.id;
+    try {
+        const notification = await fcmService.markAllNotificationsAsRead(userId);
+        if (!notification) {
+            return res.status(404).json({ message: 'Notification not found' });
+        }
+        res.json({ message: 'Notification marked as read', notification });
+    } catch (error) {
+        res.status(500).json({ message: 'Something went wrong. Please try again later' });
+    }
+}
 }
 
 export default new NotificationController();

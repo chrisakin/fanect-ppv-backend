@@ -61,6 +61,13 @@ export async function markNotificationAsRead(userId: string, notificationId: str
     );
 }
 
+export async function markAllNotificationsAsRead(userId: string) {
+  return Notification.updateMany(
+    { user: userId, read: false },
+    { $set: { read: true } }
+  );
+}
+
 export async function getUserNotifications(userId: string, page = 1, limit = 10) {
     const pipeline: any = [
         { $match: { user: new mongoose.Types.ObjectId(userId )} },
