@@ -10,6 +10,7 @@ import { verifyAppleIdToken } from '../services/appleAuthService';
 import Gift from '../models/Gift';
 import Streampass from '../models/Streampass';
 import mongoose from 'mongoose';
+import { v4 as uuidv4 } from "uuid";
 
 const client = new OAuth2Client(process.env.GOOGLE_LOGIN_CLIENT_ID);
 
@@ -126,7 +127,7 @@ class AuthController {
 
   try {
     session.startTransaction();
-
+    const sessionToken = uuidv4();
     const user = await User.findOne({ email }).session(session);
 
     if (!user) {
@@ -161,7 +162,7 @@ class AuthController {
     const accessToken = this.generateAccessToken(userId, user.email, user.firstName);
     const refreshToken = this.generateRefreshToken(userId);
     user.refreshToken = refreshToken;
-
+    user.sessionToken = sessionToken
     await user.save({ session });
 
     await session.commitTransaction();
@@ -169,7 +170,7 @@ class AuthController {
 
     return res.status(200).json({
       message: 'Email verified successfully',
-      data: { accessToken, refreshToken },
+      data: { accessToken, refreshToken, sessionToken },
     });
 
   } catch (error) {
@@ -192,7 +193,7 @@ class AuthController {
     
     async login(req: Request, res: Response) {
         const { email, password } = req.body;
-
+        const sessionToken = uuidv4();
         try {
             const user = await User.findOne({ email });
             if (!user) {
@@ -230,9 +231,10 @@ class AuthController {
 
             // Optionally store the refresh token in the database
             user.refreshToken = refreshToken;
+            user.sessionToken = sessionToken
             await user.save();
 
-            res.status(201).json({ message: 'User logged in successfully', data: { accessToken, refreshToken } });
+            res.status(201).json({ message: 'User logged in successfully', data: { accessToken, refreshToken, sessionToken } });
         } catch (error) {
             res.status(500).json({ message: 'Something went wrong. Please try again later' });
         }
@@ -382,7 +384,7 @@ class AuthController {
 async googleAuth(req: Request, res: Response) {
   const { googleauth, path, token } = req.body;
   const session = await mongoose.startSession();
-
+  const sessionToken = uuidv4();
   try {
     session.startTransaction();
 
@@ -441,6 +443,7 @@ async googleAuth(req: Request, res: Response) {
 
     // Store the refresh token
     user.refreshToken = refreshToken;
+    user.sessionToken = sessionToken
 
     // Save user with session
     await user.save({ session });
@@ -450,7 +453,7 @@ async googleAuth(req: Request, res: Response) {
 
     res.status(200).json({
       message: 'Google login successful',
-      data: { accessToken, refreshToken },
+      data: { accessToken, refreshToken, sessionToken },
     });
   } catch (error) {
     await session.abortTransaction();
@@ -465,6 +468,7 @@ async googleAuth(req: Request, res: Response) {
 async appleAuth(req: Request, res: Response) {
   const { id_token, path, firstName, lastName } = req.body;
   const session = await mongoose.startSession();
+  const sessionToken = uuidv4();
 
   try {
     session.startTransaction();
@@ -512,13 +516,14 @@ async appleAuth(req: Request, res: Response) {
 
     user.refreshToken = refreshToken;
     user.appleId = appleId;
+    user.sessionToken = sessionToken
 
     await user.save({ session });
 
     await session.commitTransaction();
     session.endSession();
 
-    res.status(200).json({ message: 'Apple login successful', data: { accessToken, refreshToken } });
+    res.status(200).json({ message: 'Apple login successful', data: { accessToken, refreshToken, sessionToken } });
   } catch (error) {
     await session.abortTransaction();
     session.endSession();
