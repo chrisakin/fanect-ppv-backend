@@ -9,6 +9,7 @@ const router = Router();
 router.post('/',  uploadFields, authMiddleware, EventController.createEvent);
 router.get('/', authMiddleware, EventController.getEvents);
 router.get('/upcoming', EventController.getUpcomingEvents);
+router.get('/auth/upcoming', authMiddleware, EventController.getUpcomingEvents);
 router.get('/live', authMiddleware, EventController.getLiveEvents);
 router.get('/past', authMiddleware, EventController.getPastEvents);
 router.get('/auth/:id', authMiddleware, EventController.getEventById);

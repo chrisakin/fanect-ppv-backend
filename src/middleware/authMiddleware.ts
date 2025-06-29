@@ -20,7 +20,7 @@ const verifyToken = async(req: Request, res: Response, next: NextFunction) => {
         return res.status(403).send('A token is required for authentication');
     }
      if (!sessionToken) {
-    return res.status(405).json({ error: "No session token provided" });
+    return res.status(402).json({ error: "No session token provided" });
   }
 
     try {
@@ -29,7 +29,7 @@ const verifyToken = async(req: Request, res: Response, next: NextFunction) => {
         const user = await User.findOne({ sessionToken });
 
   if (!user) {
-    return res.status(405).json({ error: "Invalid or expired session token" });
+    return res.status(402).json({ error: "Invalid or expired session token" });
   }
     } catch (err) {
         console.log('token expired', err)
