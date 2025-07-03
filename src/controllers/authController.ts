@@ -31,6 +31,7 @@ class AuthController {
         this.changePassword = this.changePassword.bind(this);
         this.deleteAccount = this.deleteAccount.bind(this);
         this.getGiftsAndUpdateStreamPass = this.getGiftsAndUpdateStreamPass.bind(this)
+        this.getGoogleClientId = this.getGoogleClientId(this)
     }
 
     async register(req: Request, res: Response) {
@@ -380,9 +381,15 @@ class AuthController {
         }
     }
 
+    getGoogleClientId(platform: string) {
+    if (platform === 'android') return process.env.ANDROID_GOOGLE_LOGIN_CLIENT_ID;
+    if (platform === 'ios') return process.env.IOS_GOOGLE_LOGIN_CLIENT_ID;
+    return process.env.GOOGLE_LOGIN_CLIENT_ID; // web
+    }
+
 
 async googleAuth(req: Request, res: Response) {
-  const { googleauth, path, token } = req.body;
+  const { googleauth, path, token, platform } = req.body;
   const session = await mongoose.startSession();
   const sessionToken = uuidv4();
   try {
@@ -391,7 +398,7 @@ async googleAuth(req: Request, res: Response) {
     // Verify the Google token
     const ticket = await client.verifyIdToken({
       idToken: googleauth.id_token,
-      audience: process.env.GOOGLE_LOGIN_CLIENT_ID,
+      audience: this.getGoogleClientId(platform),
     });
 
     const payload = ticket.getPayload();
