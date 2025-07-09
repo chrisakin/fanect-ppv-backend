@@ -31,7 +31,6 @@ class AuthController {
         this.changePassword = this.changePassword.bind(this);
         this.deleteAccount = this.deleteAccount.bind(this);
         this.getGiftsAndUpdateStreamPass = this.getGiftsAndUpdateStreamPass.bind(this)
-        this.getGoogleClientId = this.getGoogleClientId(this)
     }
 
     async register(req: Request, res: Response) {
