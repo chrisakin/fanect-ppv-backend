@@ -2,6 +2,7 @@ import express from 'express';
 import StreampassController from '../controllers/streampassController';
 import authMiddleware from '../middleware/authMiddleware';
 import streampassController from '../controllers/streampassController';
+import { eventStatusSSE } from '../services/sseService';
 
 
 const router = express.Router();
@@ -16,5 +17,6 @@ router.post('/payments/verify-payment', authMiddleware, StreampassController.buy
 router.get('/get-one-event/:eventId', authMiddleware, streampassController.getUserStreampassForEvent);
 router.get('/banks', authMiddleware, StreampassController.getBanks);
 router.post('/resolve-account', authMiddleware, StreampassController.resolveAccount);
+router.get('/events/:eventId/stream-status', eventStatusSSE);
 
 export default router;

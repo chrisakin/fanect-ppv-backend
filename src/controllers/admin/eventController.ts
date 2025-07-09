@@ -5,6 +5,7 @@ import Streampass from '../../models/Streampass';
 import { IUser } from '../../models/User';
 import { sendNotificationToUsers } from '../../services/fcmService';
 import EmailService from '../../services/emailService';
+import { broadcastEventStatus } from '../../services/sseService';
 
 class EventController {
     constructor() {
@@ -112,6 +113,7 @@ class EventController {
                     event.status = EventStatus.LIVE;
                     event.startedEventBy = req.admin.id
                     await event.save();
+                    broadcastEventStatus(id, {message: 'Event has started', status: EventStatus.LIVE});
                      await this.notifyEventStatus(event, EventStatus.LIVE);
                 } else if (session === 'stream-end') {
                     const url = await getSavedBroadCastUrl(event.ivsChannelArn)
@@ -122,6 +124,7 @@ class EventController {
                     event.endedEventBy = req.admin.id
                     event.ivsSavedBroadcastUrl = url
                     await event.save();
+                    broadcastEventStatus(id, {message: 'Event has ended', status: EventStatus.PAST});
                     await this.notifyEventStatus(event, EventStatus.PAST);
                 }
             res.status(200).json({ message: 'Event session updated successfully', event });
