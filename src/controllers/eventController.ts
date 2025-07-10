@@ -594,7 +594,7 @@ async getUpcomingEvents(req: Request, res: Response) {
     const userId = req.user.id;
     const { eventId } = req.params;
     // Check if user has a valid streampass for this event
-    const streampass = await Streampass.findOne({ user: userId, event: eventId });
+    const streampass = await Streampass.findOne({ user: userId, event: eventId }).populate('user');
     if (!streampass) {
         return res.status(403).json({ message: 'No access to this event' });
     }
