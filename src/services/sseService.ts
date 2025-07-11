@@ -13,7 +13,10 @@ export function eventStatusSSE(req: Request, res: Response) {
         Connection: 'keep-alive'
     });
     res.flushHeaders();
-
+      res.write(`data: ${JSON.stringify({
+    message: 'connected',
+    status: 'ACTIVE'
+  })}\n\n`);
     // Add client to the list
     if (!sseClients[eventId]) sseClients[eventId] = [];
     sseClients[eventId].push(res);
