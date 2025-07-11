@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import authController from '../../controllers/admin/adminAuthController';
-import verifyToken from '../../middleware/authMiddleware';
+import verifyToken from '../../middleware/adminAuthMiddleware';
 import { exchangeAuthCode } from '../../middleware/googleTokenMiddleware';
 
 const router = Router();

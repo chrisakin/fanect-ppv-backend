@@ -101,7 +101,9 @@ async getUpcomingEvents(req: Request, res: Response) {
     const limit = Number(req.query.limit) || 10;
     const search = req.query.search as string | undefined;
     const now = new Date();
-    const userCountry = req.country || 'US'; // default fallback
+    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const userId = req.user?.id as string; 
+    const userCountry = req.country || 'US';
     const userCurrency = countryToCurrency[userCountry] || Currency.USD;
 
     const pipeline: any[] = [
@@ -128,11 +130,38 @@ async getUpcomingEvents(req: Request, res: Response) {
       },
       {
         $match: {
-        //   eventDateTime: { $gt: now },
+           eventDateTime: { $gt: yesterday },
           status: EventStatus.UPCOMING, 
           published: true,
         },
       },
+        {
+        $lookup: {
+          from: 'streampasses',
+          let: { eventId: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$event', '$$eventId'] },
+                    { $eq: ['$user', new Types.ObjectId(userId)] }
+                  ]
+                }
+              }
+            },
+            { $limit: 1 } // optimize
+          ],
+          as: 'userStreamPass'
+        }
+      },
+      {
+    $addFields: {
+      hasStreamPass: {
+        $gt: [{ $size: { $ifNull: ['$userStreamPass', []] } }, 0]
+      }
+    }
+  },
     ];
 
     if (search && search.trim() !== '') {
@@ -153,6 +182,7 @@ async getUpcomingEvents(req: Request, res: Response) {
           _id: 1,
           name: 1,
           description: 1,
+          hasStreamPass: 1,
           eventDateTime: 1,
           date: 1,
           time: 1,
@@ -736,20 +766,6 @@ async ivsWebhook(req: Request, res: Response) {
   // 2️⃣ Handle notification
   if (message.Type === "Notification") {
     const detail = JSON.parse(message.Message);
-
-    // Example detail:
-    // {
-    //   "version": "0",
-    //   "id": "....",
-    //   "detail-type": "IVS Recording State Change",
-    //   "source": "aws.ivs",
-    //   ...
-    //   "detail": {
-    //     "recording_state": "RecordingEnded",
-    //     "s3_recording_prefix": "ivs/channel-id/yyyy/mm/dd/hh-mm-ss/"
-    //   }
-    // }
-
     if (
       detail["detail-type"] === "IVS Recording State Change" &&
       detail.detail.recording_state === "RecordingEnded"

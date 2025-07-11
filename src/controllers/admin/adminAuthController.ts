@@ -252,7 +252,7 @@ class AuthController {
     }
 
     async getProfile(req: Request, res: Response) {
-        const userId = req.user.id;
+        const userId = req.admin.id;
         try {
             const user = await getOneAdmin(userId, res);
             if (!user) {
@@ -269,7 +269,7 @@ class AuthController {
     }
 
     async updateProfile(req: Request, res: Response) {
-    const userId = req.user.id;
+    const userId = req.admin.id;
     const { firstName, lastName, username, appNotifLiveStreamBegins, appNotifLiveStreamEnds, emailNotifLiveStreamBegins, emailNotifLiveStreamEnds } = req.body;
 
     try {
@@ -325,7 +325,7 @@ class AuthController {
             user.resetPasswordToken = resetToken;
             user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
             await user.save();
-            const resetUrl = `${process.env.FRONTEND_URL}/reset/${resetToken}`;
+            const resetUrl = `${process.env.ADMIN_FRONTEND_URL}/reset/${resetToken}`;
             await EmailService.sendEmail(
                 user.email,
                 'Password Reset',
@@ -512,7 +512,7 @@ async appleAuth(req: Request, res: Response) {
 
 
     async logout(req: Request, res: Response) {
-        const userId = req.user.id;
+        const userId = req.admin.id;
         try {
             const user = await Admin.findById(userId);
             if (!user) {
@@ -532,7 +532,7 @@ async appleAuth(req: Request, res: Response) {
     }
 
     async changePassword(req: Request, res: Response) {
-        const userId = req.user.id;
+        const userId = req.admin.id;
         const { oldPassword, newPassword } = req.body;
 
         try {
@@ -560,7 +560,7 @@ async appleAuth(req: Request, res: Response) {
     }
 
     async deleteAccount(req: Request, res: Response) {
-    const userId = req.user.id;
+    const userId = req.admin.id;
     try {
         const user = await Admin.findById(userId);
         if (!user) {
