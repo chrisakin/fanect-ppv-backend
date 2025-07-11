@@ -136,10 +136,10 @@ class AuthController {
       return res.status(400).json({ message: 'Admin account has been deleted. Kindly contact support' });
     }
 
-    if (user.isVerified) {
-      await session.abortTransaction();
-      return res.status(400).json({ message: 'Admin is already verified' });
-    }
+    // if (user.isVerified) {
+    //   await session.abortTransaction();
+    //   return res.status(400).json({ message: 'Admin is already verified' });
+    // }
 
     if (user.verificationCode !== code || (user.verificationCodeExpires ?? 0) < Date.now()) {
       await session.abortTransaction();
@@ -201,8 +201,7 @@ class AuthController {
             if(user.isDeleted) {
                 return res.status(400).json({ message: 'Admin account has been deleted. Kinldy contact support' });
             }
-            if(user.isVerified === false) {
-                const verificationCode = Math.floor(100000 + Math.random() * 900000).toString(); // Generate 6-digit code
+            const verificationCode = Math.floor(100000 + Math.random() * 900000).toString(); // Generate 6-digit code
             const verificationCodeExpires = Date.now() + 3600000; // 1 hour
     
             user.verificationCode = verificationCode;
@@ -216,17 +215,15 @@ class AuthController {
                 'emailVerification',
                 { code: verificationCode, year: new Date().getFullYear() }
             );
-            return res.status(400).json({ message: 'Admin is not verified' });
-            }
 
-            const accessToken = this.generateAccessToken(((user._id as string).toString()), user.email, user.firstName);
-            const refreshToken = this.generateRefreshToken(((user._id as string).toString()));
+            // const accessToken = this.generateAccessToken(((user._id as string).toString()), user.email, user.firstName);
+            // const refreshToken = this.generateRefreshToken(((user._id as string).toString()));
 
-            // Optionally store the refresh token in the database
-            user.refreshToken = refreshToken;
-            await user.save();
+            // // Optionally store the refresh token in the database
+            // user.refreshToken = refreshToken;
+            // await user.save();
 
-            res.status(201).json({ message: 'Admin logged in successfully', data: { accessToken, refreshToken } });
+            res.status(201).json({ message: 'Admin logged in successfully. Please input the otp sent to your email.' });
         } catch (error) {
             res.status(500).json({ message: 'Something went wrong. Please try again later' });
         }
