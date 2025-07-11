@@ -1,8 +1,16 @@
 import mongoose from "mongoose";
 
-export async function getEventAnalytics(eventId: string, selectedMonth?: string, selectedCurrency?: string) {
+export async function getEventAnalytics(
+  eventId: string,
+  selectedMonth?: string,
+  selectedCurrency?: string
+) {
   const pipeline: any[] = [
-    { $match: { _id: new mongoose.Types.ObjectId(eventId) } },
+    {
+      $match: {
+        _id: new mongoose.Types.ObjectId(eventId)
+      }
+    },
 
     // Lookup related data
     {
@@ -61,7 +69,12 @@ export async function getEventAnalytics(eventId: string, selectedMonth?: string,
                         selectedMonth
                           ? {
                               $eq: [
-                                { $dateToString: { format: "%Y-%m", date: "$$purchase.createdAt" } },
+                                {
+                                  $dateToString: {
+                                    format: "%Y-%m",
+                                    date: "$$purchase.createdAt"
+                                  }
+                                },
                                 selectedMonth
                               ]
                             }
@@ -88,13 +101,58 @@ export async function getEventAnalytics(eventId: string, selectedMonth?: string,
                     selectedMonth
                       ? {
                           $eq: [
-                            { $dateToString: { format: "%Y-%m", date: "$$purchase.createdAt" } },
+                            {
+                              $dateToString: {
+                                format: "%Y-%m",
+                                date: "$$purchase.createdAt"
+                              }
+                            },
                             selectedMonth
                           ]
                         }
                       : {}
                   ]
                 }
+              }
+            }
+          },
+          transactions: {
+            $map: {
+              input: {
+                $filter: {
+                  input: "$purchases",
+                  as: "purchase",
+                  cond: {
+                    $and: [
+                      selectedCurrency
+                        ? { $eq: ["$$purchase.currency", selectedCurrency] }
+                        : {},
+                      selectedMonth
+                        ? {
+                            $eq: [
+                              {
+                                $dateToString: {
+                                  format: "%Y-%m",
+                                  date: "$$purchase.createdAt"
+                                }
+                              },
+                              selectedMonth
+                            ]
+                          }
+                        : {}
+                    ]
+                  }
+                }
+              },
+              as: "purchase",
+              in: {
+                date: {
+                  $dateToString: {
+                    format: "%Y-%m-%d",
+                    date: "$$purchase.createdAt"
+                  }
+                },
+                amount: { $toDouble: "$$purchase.amount" }
               }
             }
           }
@@ -179,3 +237,4 @@ export async function getEventAnalytics(eventId: string, selectedMonth?: string,
 
   return pipeline;
 }
+
