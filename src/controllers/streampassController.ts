@@ -103,7 +103,7 @@ async buyStreampass(req: Request, res: Response) {
       await Streampass.insertMany(streampasses, { session });
       await Gift.insertMany(gifts, { session });
 
-      streams = { event: eventId, user: userId };
+      streams = { event: eventId, user: userId, isGift };
 
       await Promise.all(
         streampasses.map(pass => {

@@ -6,6 +6,8 @@ import { IUser } from '../../models/User';
 import { sendNotificationToUsers } from '../../services/fcmService';
 import EmailService from '../../services/emailService';
 import { broadcastEventStatus } from '../../services/sseService';
+import mongoose, { Types } from 'mongoose';
+import { paginateAggregate } from '../../services/paginationService';
 
 class EventController {
     constructor() {
@@ -134,6 +136,128 @@ class EventController {
         }
 }
 
+async getAllEvents(req: Request, res: Response) {
+  try {
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 10;
+    const search = req.query.search as string | undefined;
+    const filter: any = {};
+
+    if (req.query.status) {
+      filter.status = req.query.status as EventStatus;
+    }
+
+    if (req.query.adminStatus) {
+      filter.adminStatus = req.query.adminStatus as AdminStatus;
+    }
+
+    const startDate = req.query.startDate ? new Date(req.query.startDate as string) : null;
+    const endDate = req.query.endDate ? new Date(req.query.endDate as string) : null;
+
+    const pipeline: any[] = [
+      {
+        $addFields: {
+          eventDateTime: {
+            $dateFromString: {
+              dateString: {
+                $concat: [
+                  { $dateToString: { format: '%Y-%m-%d', date: '$date' } },
+                  'T',
+                  {
+                    $cond: [
+                      { $eq: [{ $type: '$time' }, 'string'] },
+                      '$time',
+                      { $dateToString: { format: '%H:%M', date: '$time' } },
+                    ],
+                  },
+                ],
+              },
+            },
+          },
+        },
+      },
+    ];
+
+    // Base filters
+    pipeline.push({ $match: filter });
+
+    // Add date range filter
+    if (startDate || endDate) {
+      const dateMatch: any = {};
+      if (startDate) {
+        dateMatch.$gte = startDate;
+      }
+      if (endDate) {
+        dateMatch.$lte = endDate;
+      }
+
+      pipeline.push({
+        $match: {
+          eventDateTime: dateMatch,
+        },
+      });
+    }
+
+    // Search filter
+    if (search?.trim()) {
+      pipeline.push({
+        $match: {
+          $or: [
+            { name: { $regex: search, $options: 'i' } },
+            { description: { $regex: search, $options: 'i' } },
+            { broadcastSoftware: { $regex: search, $options: 'i' } },
+          ],
+        },
+      });
+    }
+
+    // Sorting
+    const sortBy = (req.query.sortBy as string) || 'eventDateTime';
+    const sortOrderStr = (req.query.sortOrder as string) || 'asc';
+    const sortOrder = sortOrderStr.toLowerCase() === 'desc' ? -1 : 1;
+
+    pipeline.push({ $sort: { [sortBy]: sortOrder } });
+
+    const result = await paginateAggregate(Event, pipeline, { page, limit });
+
+    res.status(200).json({
+      message: 'Events gotten successfully',
+      ...result,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Something went wrong. Please try again later' });
+  }
+}
+
+async getEventById(req: Request, res: Response) {
+  const { id } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ message: 'Invalid event ID' });
+  }
+
+  try {
+    const results = await Event.findById(id);
+
+    if (!results) {
+      return res.status(404).json({ message: 'Event not found' });
+    }
+
+    return res.status(200).json({
+      message: 'Event fetched successfully',
+      results
+    });
+
+  } catch (error) {
+    console.error('Get event by ID error:', error);
+    return res.status(500).json({
+      message: 'Something went wrong. Please try again later',
+    });
+  }
+}
+
+
+
 async notifyEventStatus(eventDoc: any, status: EventStatus) {
     // Find all users with a streampass for this event
     const streampasses = await Streampass.find({ event: eventDoc._id }).populate('user');
@@ -192,5 +316,7 @@ async notifyEventStatus(eventDoc: any, status: EventStatus) {
     }
 }
   }
+
+  
 
   export default new EventController();
