@@ -3,7 +3,7 @@ import Event, { Currency, EventStatus } from '../models/Event';
 import s3Service from '../services/s3Service';
 import { paginateAggregate, paginateFind } from '../services/paginationService';
 import { countryToCurrency } from '../types';
-import { createChatToken, getStreamKey } from '../services/ivsService';
+import { createChatToken, getStreamKey, deleteChannel } from '../services/ivsService';
 import Streampass from '../models/Streampass';
 import mongoose, { Types } from 'mongoose';
 import { IUser } from '../models/User';
@@ -613,6 +613,9 @@ async getUpcomingEvents(req: Request, res: Response) {
 
             await  s3Service.deleteFile(bannerKey)
             await s3Service.deleteFile(watermarkKey)
+            if (event.ivsChannelArn) {
+             await deleteChannel(event.ivsChannelArn);
+            }
             res.status(200).json({ message: 'Event deleted successfully' });
         } catch (error) {
             console.error(error);

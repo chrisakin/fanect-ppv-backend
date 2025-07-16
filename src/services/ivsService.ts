@@ -1,4 +1,4 @@
-import { IvsClient, CreateChannelCommand, GetStreamKeyCommand, ListChannelsCommand, ListStreamKeysCommand, ChannelType, CreateStreamKeyCommand } from "@aws-sdk/client-ivs";
+import { IvsClient, CreateChannelCommand, GetStreamKeyCommand, ListChannelsCommand, ListStreamKeysCommand, ChannelType, CreateStreamKeyCommand, DeleteChannelCommandInput, DeleteChannelCommand } from "@aws-sdk/client-ivs";
 import { CreateChatTokenCommand, CreateRoomCommand, IvschatClient } from "@aws-sdk/client-ivschat";
 import {
   S3Client,
@@ -68,6 +68,15 @@ export async function createChatToken(roomIdentifier: string, userId: string, us
     const response = await ivsChat.send(command);
     return response.token;
 }
+
+ export async function deleteChannel(stageArn: string) {
+    const input: DeleteChannelCommandInput = {
+      arn: stageArn,
+    };
+    const command = new DeleteChannelCommand(input);
+    const result = await ivs.send(command);
+    return result;
+  }
 
 export async function getSavedBroadCastUrl(channelArn: string) {
 const parts = channelArn.split("/");
