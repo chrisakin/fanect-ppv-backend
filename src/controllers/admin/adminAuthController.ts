@@ -176,7 +176,7 @@ class AuthController {
 
 
      private generateAccessToken(userId: string, email: string, name: string): string {
-        return jwt.sign({ id: userId, email, name }, process.env.JWT_SECRET || 'secret', { expiresIn: '1h' });
+        return jwt.sign({ id: userId, email, name }, process.env.JWT_SECRET || 'secret', { expiresIn: '6h' });
     }
 
      private generateRefreshToken(userId: string): string {

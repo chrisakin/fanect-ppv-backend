@@ -38,10 +38,19 @@ export async function createStreamKey(channelArn: string) {
   return response.streamKey?.value;
 }
 
-export async function getStreamKey(channelArn: string) {
-    const command = new ListStreamKeysCommand({ channelArn });
-    const response = await ivs.send(command);
-    return response.streamKeys?.[0];
+export async function getStreamKeyMetadata(channelArn: string) {
+  const command = new ListStreamKeysCommand({ channelArn });
+  const response = await ivs.send(command);
+  return response.streamKeys?.[0] ?? null;
+}
+
+export async function getStreamKeyValue(channelArn: string) {
+  const streamKeyMeta = await getStreamKeyMetadata(channelArn);
+  if (!streamKeyMeta?.arn) return null;
+
+  const command = new GetStreamKeyCommand({ arn: streamKeyMeta.arn });
+  const response = await ivs.send(command);
+  return response.streamKey?.value ?? null;
 }
 
 export async function listChannels() {

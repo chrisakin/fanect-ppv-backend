@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import Event, { AdminStatus, EventStatus } from '../../models/Event';
-import { createChannel, createChatRoom, createStreamKey, getSavedBroadCastUrl } from '../../services/ivsService';
+import { createChannel, createChatRoom, getStreamKeyValue, getSavedBroadCastUrl } from '../../services/ivsService';
 import Streampass from '../../models/Streampass';
 import { IUser } from '../../models/User';
 import { sendNotificationToUsers } from '../../services/fcmService';
@@ -8,6 +8,7 @@ import EmailService from '../../services/emailService';
 import { broadcastEventStatus } from '../../services/sseService';
 import mongoose, { Types } from 'mongoose';
 import { paginateAggregate } from '../../services/paginationService';
+import s3Service from '../../services/s3Service';
 
 class EventController {
     constructor() {
@@ -30,7 +31,7 @@ class EventController {
             if (!channel || !channel.arn) {
                return res.status(500).json({ message: 'Failed to create event' });
             }
-            const streamKey = await createStreamKey(channel.arn)
+            const streamKey = await getStreamKeyValue(channel.arn);
             const chat = await createChatRoom(event.name);
             if(!chat || !chat.arn) {
                return res.status(500).json({ message: 'Failed to create event' });
@@ -256,7 +257,144 @@ async getEventById(req: Request, res: Response) {
   }
 }
 
+async createEvent(req: Request, res: Response) {
+        const { name, date, time, description, prices, haveBroadcastRoom, broadcastSoftware, scheduledTestDate } = req.body;
+        const userId = req.user.id;
+        let price
+        if(!prices ) {
+           return res.status(400).json({ message: 'At least one price is required' });
+        }
+        if (typeof prices === 'string') {
+        price = JSON.parse(prices);
+        } else {
+        price = prices
+        }
+        try {
+             const eventDateTime = new Date(`${date}T${time}`);
+            if (isNaN(eventDateTime.getTime()) || eventDateTime <= new Date()) {
+                return res.status(400).json({ message: 'Event date and time must be in the future' });
+            }
+            const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+            const banner = files?.banner?.[0];
+            const watermark = files?.watermark?.[0];
+            const trailer = files?.trailer?.[0];
 
+            if (!banner) {
+                return res.status(400).json({ message: 'Banner and watermark images are required' });
+            }
+            let bannerUrl
+            let watermarkUrl
+            let trailerUrl
+           if(banner) {
+             bannerUrl = await s3Service.uploadFile(banner, 'event-banners');
+           }
+           if(watermark) {
+             watermarkUrl = await s3Service.uploadFile(watermark, 'event-watermarks');
+           }
+            if(trailer) {
+                trailerUrl = await s3Service.uploadFile(trailer, 'event-trailers')
+            }
+           
+            const event = new Event({
+                name: name.trim(),
+                date,
+                time,
+                description,
+                bannerUrl,
+                watermarkUrl,
+                trailerUrl,
+                prices: price,
+                haveBroadcastRoom,
+                broadcastSoftware,
+                scheduledTestDate,
+                createdBy: userId,
+            });
+
+            await event.save();
+            res.status(201).json({ message: 'Event created successfully', event });
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ message: 'Something went wrong. Please try again later' });
+        }
+    }
+
+     async updateEvent(req: Request, res: Response) {
+            const { id } = req.params;
+            const { name, date, time, description, prices, haveBroadcastRoom, broadcastSoftware, scheduledTestDate } = req.body;
+            const userId = req.user.id;
+            try {
+                 let price
+            // if(!prices ) {
+            //    return res.status(400).json({ message: 'At least one price is required' });
+            // }
+           if(prices) {
+             if (typeof prices === 'string') {
+            price = JSON.parse(prices);
+            } else {
+            price = prices
+            }
+           }
+                const event = await Event.findById(id);
+                if (!event) {
+                    return res.status(404).json({ message: 'Event not found' });
+                }
+    
+                if (event.createdBy.toString() !== req.user.id) {
+                    return res.status(403).json({ message: 'Unauthorized' });
+                }
+    
+                // Only check if date or time is being updated
+                if(date || time) {
+                const newDate = date || event.date;
+                const newTime = time || event.time;
+                const eventDateTime = new Date(`${newDate}T${newTime}`);
+                if (isNaN(eventDateTime.getTime()) || eventDateTime <= new Date()) {
+                    return res.status(400).json({ message: 'Event date and time must be in the future' });
+                  }
+                }
+                let bannerKey
+                const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+                if (files?.banner) {
+                     bannerKey =  await s3Service.getS3KeyFromUrl(event.bannerUrl)
+                    event.bannerUrl = await s3Service.uploadFile(files.banner?.[0], 'event-banners');
+                }
+                let watermarkKey
+                if (files?.watermark) {
+                    watermarkKey = await s3Service.getS3KeyFromUrl(event.watermarkUrl)
+                    event.watermarkUrl = await s3Service.uploadFile(files.watermark?.[0], 'event-watermarks');
+                }
+                 let trailerKey
+                if (files?.trailer) {
+                    trailerKey = await s3Service.getS3KeyFromUrl(event.trailerUrl)
+                    event.trailerUrl = await s3Service.uploadFile(files.trailerUrl?.[0], 'event-trailers');
+                }
+    
+                event.name = name || event.name;
+                event.date = date || event.date;
+                event.time = time || event.time;
+                event.description = description || event.description;
+                event.prices = price || event.prices
+                event.haveBroadcastRoom = haveBroadcastRoom || event.haveBroadcastRoom
+                event.broadcastSoftware = broadcastSoftware || event.broadcastSoftware
+                event.scheduledTestDate = scheduledTestDate || event.scheduledTestDate
+                event.updatedBy = userId
+    
+                await event.save();
+                if(bannerKey) {
+                await s3Service.deleteFile(bannerKey)
+                }
+                if(watermarkKey) {
+                await s3Service.deleteFile(watermarkKey)
+                }
+                if(trailerKey) {
+                await s3Service.deleteFile(trailerKey)
+                }
+                res.status(200).json({ message: 'Event updated successfully', event });
+            } catch (error) {
+                console.error(error);
+                res.status(500).json({ message: 'Something went wrong. Please try again later' });
+            }
+        }
 
 async notifyEventStatus(eventDoc: any, status: EventStatus) {
     // Find all users with a streampass for this event

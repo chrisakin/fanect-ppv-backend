@@ -3,7 +3,7 @@ import Event, { Currency, EventStatus } from '../models/Event';
 import s3Service from '../services/s3Service';
 import { paginateAggregate, paginateFind } from '../services/paginationService';
 import { countryToCurrency } from '../types';
-import { createChatToken, getStreamKey, deleteChannel } from '../services/ivsService';
+import { createChatToken, deleteChannel, getStreamKeyValue } from '../services/ivsService';
 import Streampass from '../models/Streampass';
 import mongoose, { Types } from 'mongoose';
 import { IUser } from '../models/User';
@@ -637,7 +637,7 @@ async getUpcomingEvents(req: Request, res: Response) {
         return res.status(404).json({ message: 'Event or IVS channel not found' });
     }
 
-    const streamKey = await getStreamKey(event.ivsChannelArn);
+    const streamKey = await getStreamKeyValue(event.ivsChannelArn);
     const chatToken = await createChatToken(event.ivsChatRoomArn, userId, (streampass.user as unknown as IUser)?.username)
     if (!streamKey || !streamKey) {
         return res.status(500).json({ message: 'Failed to retrieve stream key' });
