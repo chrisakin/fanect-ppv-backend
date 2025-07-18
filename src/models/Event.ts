@@ -45,6 +45,7 @@ export interface IEvent extends Document {
     scheduledTestDate: Date;
     trailerUrl: string;
     status: EventStatus,
+    rejectionReason: string,
     adminStatus: AdminStatus;
     ivsChannelArn: string,
     ivsPlaybackUrl: string | undefined,
@@ -82,7 +83,16 @@ const EventSchema: Schema = new Schema(
         published: { type: Boolean, default: false },
         status: { type: String, default: EventStatus.UPCOMING },
         adminStatus: { type: String, default: AdminStatus.PENDING },
-        createdBy: { type: mongoose.Types.ObjectId, ref: 'User', required: true },
+        createdBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        required: true,
+        refPath: 'createdByModel'
+        },
+        createdByModel: {
+        type: String,
+        enum: ['User', 'Admin'],
+        default: 'User'
+        },
         haveBroadcastRoom: { type: Boolean, required: true},
         canWatchSavedStream: { type: Boolean, default: false},
         broadcastSoftware: { type: String, required: true },
@@ -94,7 +104,8 @@ const EventSchema: Schema = new Schema(
         ivsIngestEndpoint: { type: String },
         ivsSavedBroadcastUrl: { type: String },
         ivsIngestStreamKey: { type: String },
-        updatedBy: { type: mongoose.Types.ObjectId, ref: 'User' },
+        rejectionReason: { type: String },
+        updatedBy: { type: mongoose.Types.ObjectId, refPath: 'createdByModel'},
         publishedBy: { type: mongoose.Types.ObjectId, ref: 'Admin' },
         unpublishedBy: { type: mongoose.Types.ObjectId, ref: 'Admin' },
         rejectedBy: { type: mongoose.Types.ObjectId, ref: 'Admin' },

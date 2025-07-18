@@ -76,7 +76,7 @@ class EventController {
 
        async rejectEvent(req: Request, res: Response) {
         const { id } = req.params;
-
+        const { rejectionReason } = req.body
         try {
             const event = await Event.findById(id);
             if (!event) {
@@ -85,6 +85,7 @@ class EventController {
 
             event.published = false;
             event.adminStatus = AdminStatus.REJECTED
+            event.rejectionReason = rejectionReason
             event.rejectedBy = req.admin.id
             event.unpublishedBy = req.admin.id
             await event.save();
@@ -238,7 +239,7 @@ async getEventById(req: Request, res: Response) {
   }
 
   try {
-    const results = await Event.findById(id);
+    const results = await Event.findById(id).populate('createdBy', 'username email firstName lastName').populate('publishedBy', 'email firstName lastName');
 
     if (!results) {
       return res.status(404).json({ message: 'Event not found' });
@@ -308,6 +309,7 @@ async createEvent(req: Request, res: Response) {
                 broadcastSoftware,
                 scheduledTestDate,
                 createdBy: userId,
+                createdByModel: 'Admin'
             });
 
             await event.save();

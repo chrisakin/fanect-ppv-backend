@@ -65,6 +65,7 @@ class EventController {
                 broadcastSoftware,
                 scheduledTestDate,
                 createdBy: userId,
+                createdByModel: 'User'
             });
 
             await event.save();
