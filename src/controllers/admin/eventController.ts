@@ -214,8 +214,8 @@ async getAllEvents(req: Request, res: Response) {
     }
 
     // Sorting
-    const sortBy = (req.query.sortBy as string) || 'eventDateTime';
-    const sortOrderStr = (req.query.sortOrder as string) || 'asc';
+    const sortBy = (req.query.sortBy as string) || 'createdAt';
+    const sortOrderStr = (req.query.sortOrder as string) || 'desc';
     const sortOrder = sortOrderStr.toLowerCase() === 'desc' ? -1 : 1;
 
     pipeline.push({ $sort: { [sortBy]: sortOrder } });
