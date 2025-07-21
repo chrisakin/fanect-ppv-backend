@@ -602,7 +602,7 @@ async appleAuth(req: Request, res: Response) {
         user.isDeleted = true;
         await user.save();
 
-        res.status(200).json({ message: 'Account deleted successfully (soft delete)' });
+        res.status(200).json({ message: 'Account deleted successfully' });
     } catch (error) {
         res.status(500).json({ message: 'Something went wrong. Please try again later' });
     }
