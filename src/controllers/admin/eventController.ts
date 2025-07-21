@@ -19,7 +19,7 @@ class EventController {
         const { id } = req.params;
 
         try {
-            const event = await Event.findById(id);
+            const event = await Event.findById(id).populate('createdBy', 'username email firstName lastName');
             if (!event) {
                 return res.status(404).json({ message: 'Event not found' });
             }
@@ -46,6 +46,13 @@ class EventController {
             event.ivsIngestEndpoint = channel && channel.ingestEndpoint ? channel.ingestEndpoint : undefined
             event.ivsIngestStreamKey = channel && streamKey ? streamKey : undefined
             await event.save();
+
+            await EmailService.sendEmail(
+                (event.createdBy as unknown as IUser).email,
+                'Event Approved and Published',
+                'eventStatus',
+                { userName: (event.createdBy as unknown as IUser).firstName, eventName: event.name, status: "Approved", statusClass: "status-approved", isApproved: true, year: new Date().getFullYear() }
+            );
 
             res.status(200).json({ message: 'Event published successfully', event });
         } catch (error) {
@@ -78,7 +85,7 @@ class EventController {
         const { id } = req.params;
         const { rejectionReason } = req.body
         try {
-            const event = await Event.findById(id);
+            const event = await Event.findById(id).populate('createdBy', 'username email firstName lastName');
             if (!event) {
                 return res.status(404).json({ message: 'Event not found' });
             }
@@ -89,6 +96,13 @@ class EventController {
             event.rejectedBy = req.admin.id
             event.unpublishedBy = req.admin.id
             await event.save();
+
+            await EmailService.sendEmail(
+                (event.createdBy as unknown as IUser).email,
+                'Event Rejected',
+                'eventStatus', // your email template
+                { userName: (event.createdBy as unknown as IUser).firstName, eventName: event.name, status: "Rejected", statusClass: "status-rejected", isApproved: false, rejectedReason: rejectionReason, year: new Date().getFullYear() }
+            );
 
             res.status(200).json({ message: 'Event unpublished successfully', event });
         } catch (error) {

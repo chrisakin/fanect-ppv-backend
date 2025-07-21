@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Your Gift Streampass Receipt</title>
+  <title>Event Review - FaNect</title>
   <style>
     body {
       margin: 0;
@@ -29,7 +29,7 @@
     .brand {
       font-size: 24px;
       font-weight: 700;
-      color: #16a34a  !important;
+      color: #16a34a !important;
       text-decoration: none;
     }
 
@@ -47,9 +47,14 @@
       line-height: 1.6;
     }
 
-    .highlight {
+    .status-approved {
       color: #16a34a;
-      font-weight: 600;
+      font-weight: bold;
+    }
+
+    .status-rejected {
+      color: #dc2626;
+      font-weight: bold;
     }
 
     .receipt-box {
@@ -86,12 +91,12 @@
       <a href="https://fanect.com" class="brand">FaNect</a>
     </div>
 
-    <div class="title">🎉 Gift Streampass Sent Successfully</div>
+    <div class="title">📋 Event Review Update</div>
 
     <div class="content">
-      <p>Hi {{giverName}},</p>
+      <p>Hi {{userName}},</p>
 
-      <p>You’ve successfully gifted a <span class="highlight">Streampass</span> to <strong>your friends</strong> for:</p>
+      <p>Your event submission has been reviewed. Here are the results:</p>
 
       <div class="receipt-box">
         <div class="receipt-item">
@@ -99,44 +104,28 @@
           <span>{{eventName}}</span>
         </div>
         <div class="receipt-item">
-          <strong>Event Date:</strong>
-          <span>{{eventDate}}</span>
+          <strong>Status:</strong>
+          <span class="{{statusClass}}">
+            {{status}} <!-- Approved or Rejected -->
+          </span>
         </div>
-        <div class="receipt-item">
-          <strong>Event Time:</strong>
-          <span>{{eventTime}}</span>
+        {{#if rejectedReason}}
+        <div class="receipt-item" style="flex-direction: column; align-items: flex-start;">
+          <strong>Rejection Reason:</strong>
+          <span style="margin-top: 1px;">{{rejectedReason}}</span>
         </div>
-        <div class="receipt-item">
-          <strong>Gift Reference:</strong>
-          <span>{{giftReference}}</span>
-        </div>
-        <div class="receipt-item">
-          <strong>Amount:</strong>
-          <span>{{amount}}</span>
-        </div>
-        <div class="receipt-item">
-          <strong>Payment Date:</strong>
-          <span>{{paymentDate}}</span>
-        </div>
+        {{/if}}
       </div>
 
-      <!-- ✅ Gifted Friends Section -->
-      <div style="margin-top: 24px;">
-        <strong>Gifted To:</strong>
-        <ul style="padding-left: 20px; margin: 12px 0;">
-          {{#each friends}}
-            <li style="margin-bottom: 6px;">
-              {{firstName}} (<a href="mailto:{{email}}" style="color: #16a34a; text-decoration: none;">{{email}}</a>)
-            </li>
-          {{/each}}
-        </ul>
-      </div>
+      {{#if isApproved}}
+        <p>🎉 Congratulations! Your event has been approved and is now live on the platform. You can start promoting it to your audience.</p>
+      {{else}}
+        <p>Unfortunately, your event could not be approved at this time. Please review the reason above and consider making the necessary changes before resubmitting.</p>
+      {{/if}}
 
-      <p>The Streampass has been sent and {{receiverName}} has been notified.</p>
+      <p>If you have any questions or need further help, feel free to reach out to us at <a href="mailto:support@fanect.com">support@fanect.com</a>.</p>
 
-      <p>Thanks for sharing the experience!</p>
-
-      <p>— The FaNect Team</p>
+      <p>Best regards,<br/>— The FaNect Team</p>
     </div>
 
     <div class="footer">

@@ -39,7 +39,7 @@ async buyStreampass(req: Request, res: Response) {
       return res.status(400).json({ message: 'Payment verification failed' });
     }
 
-    const { success, eventId: evtId, userId: uid, amount: amt, friends, currency: cur } = paymentVerified;
+    const { success, eventId: evtId, userId: uid, amount: amt,    friends, currency: cur } = paymentVerified;
     if (!success) return res.status(400).json({ message: 'Payment not verified' });
 
     // Assign for later use
@@ -137,7 +137,8 @@ async buyStreampass(req: Request, res: Response) {
           giftedBy: user.firstName,
           year: new Date().getFullYear(),
           paymentDate: new Date(),
-          amount: `${currency?.toUpperCase()} ${amount}`
+          amount: `${currency?.toUpperCase()} ${amount}`,
+          friends: friends
         }
       );
     } else {
