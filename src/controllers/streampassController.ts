@@ -168,6 +168,7 @@ async buyStreampass(req: Request, res: Response) {
         }
       );
       streams = streams[0];
+      (streams as any).isLive = event.status === EventStatus.LIVE;
     }
 
     await Transactions.create([{
