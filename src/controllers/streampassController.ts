@@ -462,6 +462,13 @@ async buyStreampass(req: Request, res: Response) {
             if(verifyStreamPass && (!friends || friends.length == 0)) {
                 return res.status(404).json({ message: 'You already have a streampass for this event' });
             }
+            const verifyFriends = friends && friends.length > 0 ? friends.map((f: { email: string }) => f.email.toLowerCase()) : [];
+            if(verifyFriends.length > 0) {
+                const users = await Streampass.find({ email: { $in: verifyFriends } }).select('_id email').lean();
+                if(users.length > 0) {
+                    return res.status(404).json({ message: `Some friends already have streampass for this event ${users.map(u => u.email).join(', ')}` });
+                }
+            }
             const session = await createStripeCheckoutSession(currency, event, user, friends, priceObj)
             res.status(200).json({ url: session.url });
         } catch (error) {
@@ -482,6 +489,13 @@ async buyStreampass(req: Request, res: Response) {
             const verifyStreamPass = await Streampass.findOne({event:eventId, user:req.user.id})
             if(verifyStreamPass && (!friends || friends.length == 0)) {
                 return res.status(404).json({ message: 'You already have a streampass for this event' });
+            }
+             const verifyFriends = friends && friends.length > 0 ? friends.map((f: { email: string }) => f.email.toLowerCase()) : [];
+            if(verifyFriends.length > 0) {
+                const users = await Streampass.find({ email: { $in: verifyFriends } }).select('_id email').lean();
+                if(users.length > 0) {
+                    return res.status(404).json({ message: `Some friends already have streampass for this event: ${users.map(u => u.email).join(', ')}` });
+                }
             }
              const response = await flutterwaveInitialization(event, currency, user, friends, priceObj)
                 res.status(200).json({ link: response.data.data.link });
