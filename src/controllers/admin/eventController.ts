@@ -251,7 +251,7 @@ async getEventById(req: Request, res: Response) {
   if (!mongoose.Types.ObjectId.isValid(id)) {
     return res.status(400).json({ message: 'Invalid event ID' });
   }
-
+  
   try {
     const results = await Event.findById(id).populate('createdBy', 'username email firstName lastName').populate('publishedBy', 'email firstName lastName');
 
