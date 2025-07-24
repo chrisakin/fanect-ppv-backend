@@ -212,6 +212,30 @@ async buyStreampass(req: Request, res: Response) {
   }
 }
 
+ async createSingleSession(req: Request, res: Response) {
+   const { streampassId, inSession } = req.body;
+    const userId = req.user.id;
+   try {
+     const streampass = await Streampass.findById(streampassId);
+     if (!streampass) {
+       return res.status(404).json({ message: 'Streampass not found' });
+     }
+     if (streampass.user.toString() !== userId) {
+       return res.status(403).json({ message: 'You are not authorized to create a session for this Streampass' });
+     }
+     if(!inSession || typeof inSession !== 'boolean') {
+       return res.status(400).json({ message: 'Invalid inSession value' });
+     }
+     streampass.inSession = inSession;
+     await streampass.save();
+
+     res.status(200).json({ message: 'Stream session updated successfully'});
+   } catch (error) {
+     console.error(error);
+     res.status(500).json({ message: 'Something went wrong. Please try again later' });
+   }
+ }
+
 
         async getUpcomingTicketedEvents(req: Request, res: Response) {
         try {
@@ -480,7 +504,12 @@ async buyStreampass(req: Request, res: Response) {
         if (!streampass) {
             return res.status(404).json({ message: 'Streampass not found for this user and event' });
         }
-
+        if(!streampass.event) {
+            return res.status(404).json({ message: 'Event not found for this streampass' });
+        }
+        if(streampass.inSession == true) {
+            return res.status(400).json({ message: 'You are already in a session for this streampass' });
+        }
         res.status(200).json({ message: 'Streampass found', streampass });
     } catch (error) {
         console.error(error);

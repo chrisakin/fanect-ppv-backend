@@ -18,5 +18,5 @@ router.get('/get-one-event/:eventId', authMiddleware, streampassController.getUs
 router.get('/banks', authMiddleware, StreampassController.getBanks);
 router.post('/resolve-account', authMiddleware, StreampassController.resolveAccount);
 router.get('/events/:eventId/stream-status', eventStatusSSE);
-
+router.post('/stream-session', authMiddleware, StreampassController.createSingleSession);
 export default router;
