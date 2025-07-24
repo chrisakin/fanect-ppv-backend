@@ -633,6 +633,12 @@ async getUpcomingEvents(req: Request, res: Response) {
     if (!streampass) {
         return res.status(403).json({ message: 'No access to this event' });
     }
+     if(!streampass.event) {
+            return res.status(404).json({ message: 'Event not found for this streampass' });
+    }
+    if(streampass.inSession == true) {
+      return res.status(400).json({ message: 'You are already in a session for this streampass' });
+    }
 
     const event = await Event.findById(eventId);
     if (!event || !event.ivsChannelArn) {
