@@ -96,6 +96,7 @@ class EventController {
         }
     }
 
+
 async getUpcomingEvents(req: Request, res: Response) {
   try {
     const page = Number(req.query.page) || 1;

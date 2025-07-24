@@ -212,6 +212,30 @@ async buyStreampass(req: Request, res: Response) {
   }
 }
 
+ async createSingleSession(req: Request, res: Response) {
+   const { streampassId, inSession } = req.body;
+    const userId = req.user.id;
+   try {
+     const streampass = await Streampass.findById(streampassId);
+     if (!streampass) {
+       return res.status(404).json({ message: 'Streampass not found' });
+     }
+     if (streampass.user.toString() !== userId) {
+       return res.status(403).json({ message: 'You are not authorized to create a session for this Streampass' });
+     }
+     if(!inSession || typeof inSession !== 'boolean') {
+       return res.status(400).json({ message: 'Invalid inSession value' });
+     }
+     streampass.inSession = inSession;
+     await streampass.save();
+
+     res.status(200).json({ message: 'Stream session updated successfully'});
+   } catch (error) {
+     console.error(error);
+     res.status(500).json({ message: 'Something went wrong. Please try again later' });
+   }
+ }
+
 
         async getUpcomingTicketedEvents(req: Request, res: Response) {
         try {
@@ -438,6 +462,13 @@ async buyStreampass(req: Request, res: Response) {
             if(verifyStreamPass && (!friends || friends.length == 0)) {
                 return res.status(404).json({ message: 'You already have a streampass for this event' });
             }
+            const verifyFriends = friends && friends.length > 0 ? friends.map((f: { email: string }) => f.email.toLowerCase()) : [];
+            if(verifyFriends.length > 0) {
+                const users = await Streampass.find({ email: { $in: verifyFriends } }).select('_id email').lean();
+                if(users.length > 0) {
+                    return res.status(404).json({ message: `Some friends already have streampass for this event ${users.map(u => u.email).join(', ')}` });
+                }
+            }
             const session = await createStripeCheckoutSession(currency, event, user, friends, priceObj)
             res.status(200).json({ url: session.url });
         } catch (error) {
@@ -458,6 +489,13 @@ async buyStreampass(req: Request, res: Response) {
             const verifyStreamPass = await Streampass.findOne({event:eventId, user:req.user.id})
             if(verifyStreamPass && (!friends || friends.length == 0)) {
                 return res.status(404).json({ message: 'You already have a streampass for this event' });
+            }
+             const verifyFriends = friends && friends.length > 0 ? friends.map((f: { email: string }) => f.email.toLowerCase()) : [];
+            if(verifyFriends.length > 0) {
+                const users = await Streampass.find({ email: { $in: verifyFriends } }).select('_id email').lean();
+                if(users.length > 0) {
+                    return res.status(404).json({ message: `Some friends already have streampass for this event: ${users.map(u => u.email).join(', ')}` });
+                }
             }
              const response = await flutterwaveInitialization(event, currency, user, friends, priceObj)
                 res.status(200).json({ link: response.data.data.link });
@@ -480,7 +518,12 @@ async buyStreampass(req: Request, res: Response) {
         if (!streampass) {
             return res.status(404).json({ message: 'Streampass not found for this user and event' });
         }
-
+        if(!streampass.event) {
+            return res.status(404).json({ message: 'Event not found for this streampass' });
+        }
+        if(streampass.inSession == true) {
+            return res.status(400).json({ message: 'You are already in a session for this streampass' });
+        }
         res.status(200).json({ message: 'Streampass found', streampass });
     } catch (error) {
         console.error(error);
