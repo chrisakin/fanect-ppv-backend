@@ -135,6 +135,7 @@ async getUpcomingEvents(req: Request, res: Response) {
            eventDateTime: { $gt: yesterday },
           status: EventStatus.UPCOMING, 
           published: true,
+          isDeleted: false
         },
       },
         {
@@ -255,6 +256,7 @@ async getUpcomingEvents(req: Request, res: Response) {
         //   eventDateTime: { $gt: now },
           status: EventStatus.LIVE, 
           published: true,
+          isDeleted: false
         },
       },
       {
@@ -374,6 +376,7 @@ async getUpcomingEvents(req: Request, res: Response) {
         //   eventDateTime: { $gt: now },
           status: EventStatus.PAST, 
           published: true,
+          isDeleted: false
         },
       },
     ];
@@ -534,7 +537,7 @@ async getUpcomingEvents(req: Request, res: Response) {
         }
        }
             const event = await Event.findById(id);
-            if (!event) {
+            if (!event  || event.isDeleted) {
                 return res.status(404).json({ message: 'Event not found' });
             }
 
@@ -600,7 +603,7 @@ async getUpcomingEvents(req: Request, res: Response) {
 
         try {
             const event = await Event.findById(id);
-            if (!event) {
+            if (!event  || event.isDeleted) {
                 return res.status(404).json({ message: 'Event not found' });
             }
 
@@ -610,8 +613,10 @@ async getUpcomingEvents(req: Request, res: Response) {
 
             const bannerKey =  await s3Service.getS3KeyFromUrl(event.bannerUrl)
             const watermarkKey = await s3Service.getS3KeyFromUrl(event.watermarkUrl)
-
-            await event.deleteOne();
+            event.isDeleted = true;
+            event.deletedAt = new Date();
+            event.published = false;
+            await event.save();
 
             await  s3Service.deleteFile(bannerKey)
             await s3Service.deleteFile(watermarkKey)
@@ -641,7 +646,7 @@ async getUpcomingEvents(req: Request, res: Response) {
     }
 
     const event = await Event.findById(eventId);
-    if (!event || !event.ivsChannelArn) {
+    if (!event  || event.isDeleted || !event.ivsChannelArn) {
         return res.status(404).json({ message: 'Event or IVS channel not found' });
     }
 
@@ -673,7 +678,7 @@ async getPlaybackUrl(req: Request, res: Response) {
     }
 
     const event = await Event.findById(eventId);
-    if (!event || !event.ivsChannelArn) {
+    if (!event || event.isDeleted || !event.ivsChannelArn) {
         return res.status(404).json({ message: 'Event or IVS channel not found' });
     }
     // IVS playback URL format: https://{playbackUrl}/index.m3u8
@@ -691,7 +696,7 @@ async getPlaybackUrl(req: Request, res: Response) {
 
     const event = await Event.findById(eventId);
 
-    if (!event || !event.ivsChannelArn) {
+    if (!event || event.isDeleted || !event.ivsChannelArn) {
       return res.status(404).json({ message: 'Event or IVS channel not found' });
     }
      if(!event?.canWatchSavedStream) {

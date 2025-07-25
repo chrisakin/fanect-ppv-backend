@@ -110,6 +110,8 @@ export interface IEvent extends Document {
     canWatchSavedStream: boolean;
     ivsIngestEndpoint: string | undefined;
     ivsIngestStreamKey: string | undefined;
+    isDeleted: boolean;
+    deletedAt: Date | undefined;
 }
 
 export enum EventStatus {
@@ -158,6 +160,8 @@ const EventSchema: Schema = new Schema(
         ivsSavedBroadcastUrl: { type: String },
         ivsIngestStreamKey: { type: String },
         rejectionReason: { type: String },
+        isDeleted: { type: Boolean, default: false },
+        deletedAt: { type: Date },
         updatedBy: { type: mongoose.Types.ObjectId, refPath: 'createdByModel'},
         publishedBy: { type: mongoose.Types.ObjectId, ref: 'Admin' },
         unpublishedBy: { type: mongoose.Types.ObjectId, ref: 'Admin' },

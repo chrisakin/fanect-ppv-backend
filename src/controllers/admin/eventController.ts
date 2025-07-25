@@ -20,7 +20,7 @@ class EventController {
 
         try {
             const event = await Event.findById(id).populate('createdBy', 'username email firstName lastName');
-            if (!event) {
+            if (!event || event.isDeleted) {
                 return res.status(404).json({ message: 'Event not found' });
             }
             if(event.published) {
@@ -66,7 +66,7 @@ class EventController {
 
         try {
             const event = await Event.findById(id);
-            if (!event) {
+            if (!event || event.isDeleted) {
                 return res.status(404).json({ message: 'Event not found' });
             }
 
@@ -86,7 +86,7 @@ class EventController {
         const { rejectionReason } = req.body
         try {
             const event = await Event.findById(id).populate('createdBy', 'username email firstName lastName');
-            if (!event) {
+            if (!event || event.isDeleted) {
                 return res.status(404).json({ message: 'Event not found' });
             }
 
@@ -117,7 +117,7 @@ class EventController {
 
         try {
             const event = await Event.findById(id);
-            if (!event) {
+            if (!event || event.isDeleted) {
                 return res.status(404).json({ message: 'Event not found' });
             }
             if(!event.published) {
@@ -351,7 +351,7 @@ async createEvent(req: Request, res: Response) {
             }
            }
                 const event = await Event.findById(id);
-                if (!event) {
+                if (!event || event.isDeleted) {
                     return res.status(404).json({ message: 'Event not found' });
                 }
     

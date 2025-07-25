@@ -1,4 +1,10 @@
+import { stat } from 'fs';
 import mongoose, { Schema, Document } from 'mongoose';
+
+export enum UserStatus {
+    ACTIVE = 'Active',
+    INACTIVE = 'Inactive',
+}
 
 export interface IUser extends Document {
     username: string;
@@ -20,6 +26,9 @@ export interface IUser extends Document {
     isDeleted?: boolean;
     appleId?: string;
     sessionToken: string | undefined;
+    lastLogin?: Date;
+    locked?: boolean;
+    status?: UserStatus;
 }
 
 const UserSchema: Schema = new Schema({
@@ -40,7 +49,10 @@ const UserSchema: Schema = new Schema({
     emailNotifLiveStreamEnds: { type: Boolean, default: true },
     deviceTokens: { type: [String], default: [] },
     isDeleted: { type: Boolean, default: false },
+    status: { type: String, enum: Object.values(UserStatus), default: UserStatus.ACTIVE },
+    lastLogin: { type: Date, default: Date.now },
     appleId: { type: String },
+    locked: { type: Boolean, default: false },
     sessionToken: { type: String }
 });
 
