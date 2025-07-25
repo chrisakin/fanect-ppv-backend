@@ -135,7 +135,7 @@ async getUpcomingEvents(req: Request, res: Response) {
            eventDateTime: { $gt: yesterday },
           status: EventStatus.UPCOMING, 
           published: true,
-          isDeleted: false
+          isDeleted: { $ne: true }
         },
       },
         {
@@ -256,7 +256,7 @@ async getUpcomingEvents(req: Request, res: Response) {
         //   eventDateTime: { $gt: now },
           status: EventStatus.LIVE, 
           published: true,
-          isDeleted: false
+          isDeleted: { $ne: true }
         },
       },
       {
@@ -376,7 +376,7 @@ async getUpcomingEvents(req: Request, res: Response) {
         //   eventDateTime: { $gt: now },
           status: EventStatus.PAST, 
           published: true,
-          isDeleted: false
+          isDeleted: { $ne: true }
         },
       },
     ];
