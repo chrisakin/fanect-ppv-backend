@@ -6,6 +6,7 @@ import { uploadFields } from "../../middleware/multerMiddleware";
 const router = Router();
 
 router.post('/create',  uploadFields, adminAuthMiddleware, EventController.createEvent);
+router.put('/update/:id',  uploadFields, adminAuthMiddleware, EventController.updateEvent);
 router.put('/publish/:id', adminAuthMiddleware, EventController.publishEvent);
 router.put('/unpublish/:id', adminAuthMiddleware, EventController.unpublishEvent);
 router.put('/reject/:id', adminAuthMiddleware, EventController.rejectEvent);
