@@ -228,7 +228,6 @@ async buyStreampass(req: Request, res: Response) {
      }
      streampass.inSession = session;
      await streampass.save();
-
      res.status(200).json({ message: 'Stream session updated successfully'});
    } catch (error) {
      console.error(error);
