@@ -142,7 +142,7 @@ async buyStreampass(req: Request, res: Response) {
         }
       );
     } else {
-      streams = await Streampass.create([{
+      await Streampass.create([{
         user: userId,
         event: eventId,
         paymentMethod,
@@ -167,8 +167,7 @@ async buyStreampass(req: Request, res: Response) {
           year: new Date().getFullYear()
         }
       );
-      streams = streams[0];
-      (streams as any).isLive = event.status === EventStatus.LIVE;
+      streams = { event: eventId, user: userId, isGift: false, isLive: event.status === EventStatus.LIVE };
     }
 
     await Transactions.create([{
@@ -214,6 +213,7 @@ async buyStreampass(req: Request, res: Response) {
 
  async createSingleSession(req: Request, res: Response) {
    const { streampassId, inSession } = req.body;
+   let session: boolean = inSession as boolean;
     const userId = req.user.id;
    try {
      const streampass = await Streampass.findById(streampassId);
@@ -223,10 +223,11 @@ async buyStreampass(req: Request, res: Response) {
      if (streampass.user.toString() !== userId) {
        return res.status(403).json({ message: 'You are not authorized to create a session for this Streampass' });
      }
-     if(!inSession || typeof inSession !== 'boolean') {
+     console.log(streampass.inSession, session)
+     if(!session || typeof session !== 'boolean') {
        return res.status(400).json({ message: 'Invalid inSession value' });
      }
-     streampass.inSession = inSession;
+     streampass.inSession = session;
      await streampass.save();
 
      res.status(200).json({ message: 'Stream session updated successfully'});
@@ -522,8 +523,10 @@ async buyStreampass(req: Request, res: Response) {
             return res.status(404).json({ message: 'Event not found for this streampass' });
         }
         if(streampass.inSession == true) {
-            return res.status(400).json({ message: 'You are already in a session for this streampass' });
+            return res.status(404).json({ message: 'You are already in a session for this streampass' });
         }
+        // streampass.inSession = true;
+        // await streampass.save();
         res.status(200).json({ message: 'Streampass found', streampass });
     } catch (error) {
         console.error(error);
