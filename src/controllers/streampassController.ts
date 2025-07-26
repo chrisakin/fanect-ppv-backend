@@ -223,8 +223,7 @@ async buyStreampass(req: Request, res: Response) {
      if (streampass.user.toString() !== userId) {
        return res.status(403).json({ message: 'You are not authorized to create a session for this Streampass' });
      }
-     console.log(streampass.inSession, session)
-     if(!session) {
+     if(typeof session !== 'boolean') {
        return res.status(400).json({ message: 'Invalid inSession value' });
      }
      streampass.inSession = session;
