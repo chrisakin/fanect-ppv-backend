@@ -9,6 +9,7 @@ import { broadcastEventStatus } from '../../services/sseService';
 import mongoose, { Types } from 'mongoose';
 import { paginateAggregate } from '../../services/paginationService';
 import s3Service from '../../services/s3Service';
+import { getEventAnalytics } from '../../services/analyticsService';
 
 class EventController {
     constructor() {
@@ -264,6 +265,29 @@ async getEventById(req: Request, res: Response) {
       results
     });
 
+  } catch (error) {
+    console.error('Get event by ID error:', error);
+    return res.status(500).json({
+      message: 'Something went wrong. Please try again later',
+    });
+  }
+}
+
+async getSingleEventMetrics(req: Request, res: Response) {
+   const { id } = req.params;
+    const { month: selectedMonth, currency: selectedCurrency } = req.query;
+  try {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ message: 'Invalid event ID' });
+  }
+    const pipeline: any = await getEventAnalytics(id, selectedMonth as string, selectedCurrency as string);
+    const result = await Event.aggregate(pipeline);
+      if (result.length === 0) {
+      return res.status(404).json({ message: 'Event not found' });
+    }
+    
+    res.json(result[0]);  
+  
   } catch (error) {
     console.error('Get event by ID error:', error);
     return res.status(500).json({

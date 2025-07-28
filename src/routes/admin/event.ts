@@ -13,5 +13,6 @@ router.put('/reject/:id', adminAuthMiddleware, EventController.rejectEvent);
 router.put('/update-event-session/:id', adminAuthMiddleware, EventController.updateEventSession);
 router.get('/all-events', adminAuthMiddleware, EventController.getAllEvents);
 router.get('/single-event/:id', adminAuthMiddleware, EventController.getEventById)
+router.get('/single-event-metrics/:id', adminAuthMiddleware, EventController.getSingleEventMetrics)
 
 export default router;
