@@ -3,9 +3,11 @@ import User, { UserStatus } from '../../models/User';
 import { IUser } from '../../models/User';
 import mongoose from 'mongoose';
 import { paginateAggregate } from '../../services/paginationService';
+import Streampass from '../../models/Streampass';
+import Activity from '../../models/Activity';
+import Transactions from '../../models/Transactions';
 
 class usersController {
-    constructor() {}
 
    async getAllUsers(req: Request, res: Response) {
      try {
@@ -79,6 +81,224 @@ class usersController {
        });
      }
    }
+
+   async getEventsJoinedByUser(req: Request, res: Response) {
+     const { id } = req.params; 
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        return res.status(400).json({ message: 'Invalid user ID' });
+      }
+       try {
+       const page = Number(req.query.page) || 1;
+       const limit = Number(req.query.limit) || 10;
+       const search = req.query.search as string | undefined;
+       const filter: any = {};
+   
+       if (req.query.status) {
+         filter.status = req.query.status as UserStatus;
+       }
+     const pipeline: any[] = [
+  {
+    $match: { user: new mongoose.Types.ObjectId(id) }
+  },
+  {
+    $lookup: {
+      from: 'events',
+      localField: 'event',
+      foreignField: '_id',
+      as: 'event'
+    }
+  },
+  {
+    $unwind: '$event'
+  },
+  {
+    $project: {
+      _id: 0,
+      event: {
+        _id: 1,
+        title: 1,
+        description: 1,
+        date: 1,
+        time: 1,
+        location: 1
+      }
+    }
+  }
+];
+if (search?.trim()) {
+         pipeline.push({
+           $match: {
+             $or: [
+               { firstName: { $regex: search, $options: 'i' } },
+               { lastName: { $regex: search, $options: 'i' } },
+               { email: { $regex: search, $options: 'i' } },
+             ],
+           },
+         });
+       }
+   
+       // Sorting
+       const sortBy = (req.query.sortBy as string) || 'createdAt';
+       const sortOrderStr = (req.query.sortOrder as string) || 'desc';
+       const sortOrder = sortOrderStr.toLowerCase() === 'desc' ? -1 : 1;
+   
+       pipeline.push({ $sort: { [sortBy]: sortOrder } });
+        const events = await paginateAggregate(Streampass, pipeline, { page, limit });
+        res.status(200).json({ message: 'Events joined by user fetched successfully', events });
+      } catch (error) {
+        console.error('Error fetching events joined by user:', error);
+        res.status(500).json({ message: 'Something went wrong. Please try again later' });
+      }
+    }
+
+    async getUserActivities(req: Request, res: Response) {
+     const { id } = req.params;
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        return res.status(400).json({ message: 'Invalid user ID' });
+      }
+      try {
+        const page = Number(req.query.page) || 1;
+        const limit = Number(req.query.limit) || 10;
+        const search = req.query.search as string | undefined;
+        const filter: any = {};
+    
+        if (req.query.status) {
+          filter.status = req.query.status as UserStatus;
+        }
+    
+        const pipeline: any[] = [
+          { $match: { user: new mongoose.Types.ObjectId(id) } },
+          { $lookup: { from: 'users', localField: 'user', foreignField: '_id', as: 'userDetails' } },
+          { $unwind: '$userDetails' },
+          { $project: { _id: 1, userName: '$userDetails.firstName', eventData: 1, component: 1, createdAt: 1, activityType: 1 } }
+        ];
+    
+        if (search?.trim()) {
+          pipeline.push({
+            $match: {
+              $or: [
+                { 'userDetails.firstName': { $regex: search, $options: 'i' } },
+                { 'userDetails.lastName': { $regex: search, $options: 'i' } },
+                { email: { $regex: search, $options: 'i' } },
+              ],
+            },
+          });
+        }
+    
+        // Sorting
+        const sortBy = (req.query.sortBy as string) || 'createdAt';
+        const sortOrderStr = (req.query.sortOrder as string) || 'desc';
+        const sortOrder = sortOrderStr.toLowerCase() === 'desc' ? -1 : 1;
+    
+        pipeline.push({ $sort: { [sortBy]: sortOrder } });
+    
+        const result = await paginateAggregate(Activity, pipeline, { page, limit });
+    
+        res.status(200).json({
+          message: 'User activities fetched successfully',
+          ...result,
+        });
+      } catch (error) {
+        console.error('Error fetching user activities:', error);
+        res.status(500).json({ message: 'Something went wrong. Please try again later' });
+      }
+    }
+
+    async getUsersTransactionHistory(req: Request, res: Response) {
+     const { id } = req.params; 
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        return res.status(400).json({ message: 'Invalid user ID' });
+      }
+      try {
+        const page = Number(req.query.page) || 1;
+        const limit = Number(req.query.limit) || 10;
+        const search = req.query.search as string | undefined;
+        const filter: any = {};
+    
+        if (req.query.status) {
+          filter.status = req.query.status as UserStatus;
+        }
+        if(req.query.giftStatus) {
+          filter.isGift = req.query.giftStatus === 'gift' ? true : false;
+        }
+    
+        // const pipeline: any[] = [
+        //   { $match: { user: new mongoose.Types.ObjectId(id) } },
+        //   { $lookup: { from: 'events', localField: 'event', foreignField: '_id', as: 'eventDetails' } },
+        //   { $unwind: '$eventDetails' },
+        //   { $project: { _id: 1, eventName: '$eventDetails.name', eventDate: '$eventDetails.date', eventTime: '$eventDetails.time', status: '$eventDetails.status', adminStatus: '$eventDetails.adminStatus'} }
+        // ];
+
+        const pipeline: any[] = [
+  { 
+    $match: { user: new mongoose.Types.ObjectId(id) } 
+  },
+  { 
+    $lookup: { 
+      from: 'events', 
+      localField: 'event', 
+      foreignField: '_id', 
+      as: 'eventDetails' 
+    } 
+  },
+  { 
+    $unwind: '$eventDetails' 
+  },
+  {
+    $replaceRoot: {
+      newRoot: {
+        $mergeObjects: [
+          '$$ROOT',
+          {
+            eventName: '$eventDetails.name',
+            eventDate: '$eventDetails.date',
+            eventTime: '$eventDetails.time',
+            eventStatus: '$eventDetails.status',
+            eventAdminStatus: '$eventDetails.adminStatus',
+            eventId: '$eventDetails._id',
+          }
+        ]
+      }
+    }
+  },
+  {
+    $project: {
+      eventDetails: 0, // optional: remove full eventDetails if not needed
+      event: 0         // optional: remove event ID if not needed
+    }
+  }
+];
+    
+        if (search?.trim()) {
+          pipeline.push({
+            $match: {
+              $or: [
+                { 'transactionDetails.data': { $regex: search, $options: 'i' } },
+                { amount: { $regex: search, $options: 'i' } },
+              ],
+            },
+          });
+        }
+    
+        // Sorting
+        const sortBy = (req.query.sortBy as string) || 'createdAt';
+        const sortOrderStr = (req.query.sortOrder as string) || 'desc';
+        const sortOrder = sortOrderStr.toLowerCase() === 'desc' ? -1 : 1;
+    
+        pipeline.push({ $sort: { [sortBy]: sortOrder } });
+    
+        const result = await paginateAggregate(Transactions, pipeline, { page, limit });
+    
+        res.status(200).json({
+          message: 'User transaction history fetched successfully',
+          ...result,
+        });
+      } catch (error) {
+        console.error('Error fetching user transaction history:', error);
+        res.status(500).json({ message: 'Something went wrong. Please try again later' });
+      }
+    }
+
 
    async lockUser(req: Request, res: Response) {
      const { id } = req.params;

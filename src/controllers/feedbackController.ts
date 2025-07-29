@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import Feedback from '../models/Feedback';
 import { Request, Response } from 'express';
 import User, { IUser } from '../models/User';
+import { CreateActivity } from '../services/userActivityService';
 
 class FeedbackController {
     async submitFeedback(req: Request, res: Response) {
@@ -26,6 +27,12 @@ class FeedbackController {
                 ratings,
                 comments
             });
+            CreateActivity({
+                user: userId as unknown as mongoose.Types.ObjectId,
+                eventData: `User submitted feedback for event with ID ${eventId}`,
+                component: 'feedback',
+                activityType: 'feedback'
+                });
 
             res.status(201).json({ message: 'Feedback submitted', feedback });
         } catch (error) {

@@ -1,5 +1,7 @@
 import { Request, Response } from 'express';
 import WithdrawalDetails from '../models/Withdrawal';
+import { CreateActivity } from '../services/userActivityService';
+import mongoose from 'mongoose';
 
 class WithdrawalController {
     async saveWithdrawalDetails(req: Request, res: Response) {
@@ -35,7 +37,12 @@ class WithdrawalController {
                 address,
                 bankRoutingNumber,
             });
-
+            CreateActivity({
+            user: req.user.id as unknown as mongoose.Types.ObjectId,
+            eventData: `Saved withdrawal details for user ${userId}`,
+            component: 'withdrawal',
+            activityType: 'withdrawalDetails'
+            });
             res.status(201).json({ message: 'Withdrawal details saved', withdrawal });
         } catch (error) {
             res.status(500).json({ message: 'Something went wrong. Please try again later' });

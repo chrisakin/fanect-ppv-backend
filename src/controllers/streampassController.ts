@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import Streampass from '../models/Streampass';
-import Event, { EventStatus } from '../models/Event';
+import Event, { EventStatus, IEvent } from '../models/Event';
 import { flutterwaveInitialization, getAllBanks, resolveBankAccount, verifyFlutterwavePayment } from '../services/flutterwaveService';
 import { createStripeCheckoutSession, verifyStripePayment } from '../services/stripeService';
 import emailService from '../services/emailService';
@@ -10,6 +10,7 @@ import { paginateAggregate } from '../services/paginationService';
 import User from '../models/User';
 import Gift from '../models/Gift';
 import Transactions, { TransactionStatus } from '../models/Transactions';
+import { CreateActivity } from '../services/userActivityService';
 
 class StreampassController {
 
@@ -66,6 +67,7 @@ async buyStreampass(req: Request, res: Response) {
     }
 
     let streams;
+    let activityDescription
 
     if (friends && friends.length > 0) {
       const emails = friends.map((f: { email: string }) => f.email.toLowerCase());
@@ -141,6 +143,7 @@ async buyStreampass(req: Request, res: Response) {
           friends: friends
         }
       );
+        activityDescription = `User purchased ${friends.length} gift streampasses for event ${event.name}`;
     } else {
       await Streampass.create([{
         user: userId,
@@ -168,6 +171,7 @@ async buyStreampass(req: Request, res: Response) {
         }
       );
       streams = { event: eventId, user: userId, isGift: false, isLive: event.status === EventStatus.LIVE };
+        activityDescription = `User purchased a streampass for event ${event.name}`;
     }
 
     await Transactions.create([{
@@ -183,7 +187,12 @@ async buyStreampass(req: Request, res: Response) {
 
     await session.commitTransaction();
     session.endSession();
-
+    CreateActivity({
+    user: userId as unknown as mongoose.Types.ObjectId,
+    eventData: activityDescription,
+    component: 'streampass',
+    activityType: 'buystreampass'
+    });
     res.status(201).json({ message: 'Streampass purchased successfully', streampass: streams });
   } catch (error) {
     await session.abortTransaction();
@@ -298,6 +307,12 @@ async buyStreampass(req: Request, res: Response) {
             ];
 
             const result = await paginateAggregate(Streampass, pipeline, { page, limit });
+            CreateActivity({
+            user: userId as unknown as mongoose.Types.ObjectId,
+            eventData: `Fetched upcoming events for user with ID ${userId}`,
+            component: 'streampass',
+            activityType: 'upcomingstreampass'
+            });
             res.status(200).json({ message: 'Upcoming events gotten successfully', ...result });
         } catch (error) {
             console.error(error);
@@ -369,6 +384,12 @@ async buyStreampass(req: Request, res: Response) {
             ];
 
             const result = await paginateAggregate(Streampass, pipeline, { page, limit });
+            CreateActivity({
+            user: userId as unknown as mongoose.Types.ObjectId,
+            eventData: `Fetched live events for user with ID ${userId}`,
+            component: 'streampass',
+            activityType: 'livestreampass'
+            });
             res.status(200).json({ message: 'Live events gotten successfully', ...result });
         } catch (error) {
             console.error(error);
@@ -438,6 +459,12 @@ async buyStreampass(req: Request, res: Response) {
             ];
 
             const result = await paginateAggregate(Streampass, pipeline, { page, limit });
+            CreateActivity({
+            user: userId as unknown as mongoose.Types.ObjectId,
+            eventData: `Fetched past events for user with ID ${userId}`,
+            component: 'streampass',
+            activityType: 'paststreampass'
+            });
             res.status(200).json({ message: 'Past events gotten successfully', ...result });
         } catch (error) {
             console.error(error);
@@ -469,6 +496,12 @@ async buyStreampass(req: Request, res: Response) {
                 }
             }
             const session = await createStripeCheckoutSession(currency, event, user, friends, priceObj)
+            CreateActivity({
+            user: req.user.id as unknown as mongoose.Types.ObjectId,
+            eventData: `Created stripe Checkout Session for event ${event.name}`,
+            component: 'streampass',
+            activityType: 'stripecheckout'
+            });
             res.status(200).json({ url: session.url });
         } catch (error) {
             console.error(error);
@@ -497,6 +530,12 @@ async buyStreampass(req: Request, res: Response) {
                 }
             }
              const response = await flutterwaveInitialization(event, currency, user, friends, priceObj)
+             CreateActivity({
+            user: req.user.id as unknown as mongoose.Types.ObjectId,
+            eventData: `Created flutterwave initialisation session for event ${event.name}`,
+            component: 'streampass',
+            activityType: 'flutterwave'
+            });
                 res.status(200).json({ link: response.data.data.link });
             } catch (error) {
             console.error(error);
@@ -523,6 +562,12 @@ async buyStreampass(req: Request, res: Response) {
         if(streampass.inSession == true) {
             return res.status(404).json({ message: 'You are already in a session for this streampass' });
         }
+        CreateActivity({
+            user: req.user.id as unknown as mongoose.Types.ObjectId,
+            eventData: `Started streaming session for event ${(streampass.event as any).name}`,
+            component: 'streampass',
+            activityType: 'streamsession'
+            });
         // streampass.inSession = true;
         // await streampass.save();
         res.status(200).json({ message: 'Streampass found', streampass });

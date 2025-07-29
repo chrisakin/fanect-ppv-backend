@@ -11,6 +11,7 @@ import Gift from '../models/Gift';
 import Streampass from '../models/Streampass';
 import mongoose from 'mongoose';
 import { v4 as uuidv4 } from "uuid";
+import { CreateActivity } from '../services/userActivityService';
 
 const client = new OAuth2Client(process.env.GOOGLE_LOGIN_CLIENT_ID);
 
@@ -65,7 +66,12 @@ class AuthController {
             });
 
             await newUser.save();
-
+            CreateActivity({
+                user: newUser._id as mongoose.Types.ObjectId,
+                eventData: `New User registered an account with email: ${email}`,
+                component: 'auth',
+                activityType: 'registration'
+            });
             // Send verification email
             await EmailService.sendEmail(
                 email,
@@ -105,7 +111,12 @@ class AuthController {
             user.verificationCode = verificationCode;
             user.verificationCodeExpires = verificationCodeExpires;
             await user.save();
-    
+            CreateActivity({
+                user: user._id as mongoose.Types.ObjectId,
+                eventData: `User requested for resend of verification code for email: ${email}`,
+                component: 'auth',
+                activityType: 'resendotp'
+            });
             // Resend verification email
             await EmailService.sendEmail(
                 email,
@@ -164,7 +175,12 @@ class AuthController {
     user.refreshToken = refreshToken;
     user.sessionToken = sessionToken
     await user.save({ session });
-
+    CreateActivity({
+      user: user._id as mongoose.Types.ObjectId,  
+      eventData: `User sucessfully verified email (${email})`,
+      component: 'auth',
+      activityType: 'verifyemail'
+    });
     await session.commitTransaction();
     session.endSession();
 
@@ -219,7 +235,12 @@ class AuthController {
             user.verificationCode = verificationCode;
             user.verificationCodeExpires = verificationCodeExpires;
             await user.save();
-    
+                CreateActivity({
+                    user: user._id as mongoose.Types.ObjectId,   
+                    eventData: `User sucessfully loggedin but is not verified with email: ${email}`,
+                    component: 'auth',
+                    activityType: 'login'
+                });
             // Resend verification email
             await EmailService.sendEmail(
                 email,
@@ -237,7 +258,12 @@ class AuthController {
             user.refreshToken = refreshToken;
             user.sessionToken = sessionToken
             await user.save();
-
+              CreateActivity({
+                    user: user._id as mongoose.Types.ObjectId,
+                    eventData: `User sucessfully loggedin`,
+                    component: 'auth',
+                    activityType: 'login'
+                });
             res.status(201).json({ message: 'User logged in successfully', data: { accessToken, refreshToken, sessionToken } });
         } catch (error) {
             res.status(500).json({ message: 'Something went wrong. Please try again later' });
@@ -259,6 +285,12 @@ class AuthController {
             }
 
             const newAccessToken = this.generateAccessToken((user._id as string).toString(), user.email, user.firstName);
+            CreateActivity({
+               user: user._id as mongoose.Types.ObjectId,
+               eventData: `Refresh token granted to user`,
+               component: 'auth',
+               activityType: 'refreshtoken'
+            });
             res.json({ accessToken: newAccessToken });
         } catch (error) {
             res.status(403).json({ message: 'Invalid or expired refresh token' });
@@ -304,7 +336,12 @@ class AuthController {
         if(emailNotifLiveStreamEnds) user.emailNotifLiveStreamEnds = emailNotifLiveStreamEnds;
 
         await user.save();
-
+        CreateActivity({
+           user: user._id as mongoose.Types.ObjectId,
+           eventData: `User updated profile information`,
+           component: 'auth',
+           activityType: 'profile'
+        });
         res.status(200).json({ message: 'Profile updated successfully', user });
     } catch (error) {
         console.error(error);
@@ -348,6 +385,12 @@ class AuthController {
                 { resetUrl , year: new Date().getFullYear()}
             );
             }
+            CreateActivity({
+           user: user._id as mongoose.Types.ObjectId,
+           eventData: `User requested password reset for email: ${email}`,
+           component: 'auth',
+           activityType: 'passwordreset'
+        });
             res.status(200).json({ message: 'Password reset email sent' });
         } catch (error) {
             res.status(500).json({ message: 'Something went wrong. Please try again later' });
@@ -376,7 +419,12 @@ class AuthController {
             user.resetPasswordToken = undefined;
             user.resetPasswordExpires = undefined;
             await user.save();
-
+             CreateActivity({
+                user: user._id as mongoose.Types.ObjectId,
+                eventData: `User reset their password: ${user.email}`,
+                component: 'auth',
+                activityType: 'passwordreset'
+            });
             res.status(200).json({ message: 'Password has been reset' });
         } catch (error) {
             console.log(error)
@@ -460,7 +508,12 @@ async googleAuth(req: Request, res: Response) {
 
     await session.commitTransaction();
     session.endSession();
-
+     CreateActivity({
+        user: user._id as mongoose.Types.ObjectId,
+        eventData: `User sucessfully loggedin using google auth`,
+        component: 'auth',
+        activityType: 'login'
+    });
     res.status(200).json({
       message: 'Google login successful',
       data: { accessToken, refreshToken, sessionToken },
@@ -532,7 +585,12 @@ async appleAuth(req: Request, res: Response) {
 
     await session.commitTransaction();
     session.endSession();
-
+    CreateActivity({
+        user: user._id as mongoose.Types.ObjectId,
+        eventData: `User sucessfully loggedin using apple auth`,
+        component: 'auth',
+        activityType: 'login'
+    });
     res.status(200).json({ message: 'Apple login successful', data: { accessToken, refreshToken, sessionToken } });
   } catch (error) {
     await session.abortTransaction();
@@ -557,8 +615,13 @@ async appleAuth(req: Request, res: Response) {
             user.refreshToken = undefined;
             user.sessionToken = undefined
             await user.save();
-
-            res.status(200).json({ message: 'User logged out successfully' });
+        CreateActivity({
+        user: user._id as mongoose.Types.ObjectId,
+        eventData: `User sucessfully logged out`,
+        component: 'auth',
+        activityType: 'logout'
+        });
+        res.status(200).json({ message: 'User logged out successfully' });
         } catch (error) {
             res.status(500).json({ message: 'Something went wrong. Please try again later' });
         }
@@ -585,6 +648,12 @@ async appleAuth(req: Request, res: Response) {
             const hashedPassword = await bcrypt.hash(newPassword, 10);
             user.password = hashedPassword;
             await user.save();
+            CreateActivity({
+            user: user._id as mongoose.Types.ObjectId,
+            eventData: `User changed their password sucessfully`,
+            component: 'auth',
+            activityType: 'changepassword'
+            });
 
             res.status(200).json({ message: 'Password changed successfully' });
         } catch (error) {
@@ -605,7 +674,12 @@ async appleAuth(req: Request, res: Response) {
 
         user.isDeleted = true;
         await user.save();
-
+        CreateActivity({
+            user: user._id as mongoose.Types.ObjectId,
+            eventData: `User deleted their account`,
+            component: 'auth',
+            activityType: 'deleteaccount'
+            });
         res.status(200).json({ message: 'Account deleted successfully' });
     } catch (error) {
         res.status(500).json({ message: 'Something went wrong. Please try again later' });

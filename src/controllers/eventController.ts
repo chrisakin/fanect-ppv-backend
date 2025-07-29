@@ -12,6 +12,7 @@ import EmailService from '../services/emailService';
 import { getEventAnalytics } from '../services/analyticsService';
 import axios from 'axios';
 import Views from '../models/Views';
+import { CreateActivity } from '../services/userActivityService';
 
 class EventController {
     async createEvent(req: Request, res: Response) {
@@ -69,6 +70,12 @@ class EventController {
             });
 
             await event.save();
+            CreateActivity({
+            user: userId as mongoose.Types.ObjectId,
+            eventData: `User created a new event ${event.name}`,
+            component: 'event',
+            activityType: 'createevent'
+            });
             res.status(201).json({ message: 'Event created successfully', event });
         } catch (error) {
             console.error(error);
@@ -208,7 +215,12 @@ async getUpcomingEvents(req: Request, res: Response) {
     );
 
     const result = await paginateAggregate(Event, pipeline, { page, limit });
-
+    CreateActivity({
+    user: userId as unknown as mongoose.Types.ObjectId,
+    eventData: `User requested upcoming events`,
+    component: 'event',
+    activityType: 'upcomingevent'
+    });
     res.status(200).json({
       message: 'Events gotten successfully',
       ...result,
@@ -329,7 +341,12 @@ async getUpcomingEvents(req: Request, res: Response) {
     );
 
     const result = await paginateAggregate(Event, pipeline, { page, limit });
-
+    CreateActivity({
+    user: userId as unknown as mongoose.Types.ObjectId,
+    eventData: `User requested live events`,
+    component: 'event',
+    activityType: 'liveevent'
+    });
     res.status(200).json({
       message: 'Events gotten successfully',
       ...result,
@@ -421,7 +438,6 @@ async getUpcomingEvents(req: Request, res: Response) {
     );
 
     const result = await paginateAggregate(Event, pipeline, { page, limit });
-
     res.status(200).json({
       message: 'Events gotten successfully',
       ...result,
@@ -503,7 +519,12 @@ async getUpcomingEvents(req: Request, res: Response) {
     ) || event.prices?.find((p: any) => p.currency === 'USD' || event.prices?.find((p: any) => p.currency === 'NGN' || event.prices[0]));
 
     delete event.prices;
-
+    CreateActivity({
+    user: userId as unknown as mongoose.Types.ObjectId,
+    eventData: `User requested single event ${event.name}`,
+    component: 'event',
+    activityType: 'singleevent'
+    });
     return res.status(200).json({
       message: 'Event fetched successfully',
       event: {
@@ -511,7 +532,6 @@ async getUpcomingEvents(req: Request, res: Response) {
         price: priceObj || null,
       },
     });
-
   } catch (error) {
     console.error('Get event by ID error:', error);
     return res.status(500).json({
@@ -591,6 +611,12 @@ async getUpcomingEvents(req: Request, res: Response) {
             if(trailerKey) {
             await s3Service.deleteFile(trailerKey)
             }
+            CreateActivity({
+            user: userId as unknown as mongoose.Types.ObjectId,
+            eventData: `User updated single event ${event.name}`,
+            component: 'event',
+            activityType: 'updateevent'
+            });
             res.status(200).json({ message: 'Event updated successfully', event });
         } catch (error) {
             console.error(error);
@@ -600,7 +626,7 @@ async getUpcomingEvents(req: Request, res: Response) {
 
     async deleteEvent(req: Request, res: Response) {
         const { id } = req.params;
-
+        const userId = req.user.id;
         try {
             const event = await Event.findById(id);
             if (!event  || event.isDeleted) {
@@ -623,6 +649,12 @@ async getUpcomingEvents(req: Request, res: Response) {
             if (event.ivsChannelArn) {
              await deleteChannel(event.ivsChannelArn);
             }
+            CreateActivity({
+            user: userId as unknown as mongoose.Types.ObjectId,
+            eventData: `User deleted single event ${event.name}`,
+            component: 'event',
+            activityType: 'deleteevent'
+            });
             res.status(200).json({ message: 'Event deleted successfully' });
         } catch (error) {
             console.error(error);
@@ -663,6 +695,12 @@ async getUpcomingEvents(req: Request, res: Response) {
     type: "live"
   })
   }
+  CreateActivity({
+    user: userId as unknown as mongoose.Types.ObjectId,
+    eventData: `User requested streamkey for event ${event.name}`,
+    component: 'event',
+    activityType: 'streamkey'
+    });
     res.json({ streamKey: streamKey, chatToken: chatToken, playbackUrl: event.ivsPlaybackUrl, chatRoomArn: event.ivsChatRoomArn });
 }
 
@@ -681,6 +719,12 @@ async getPlaybackUrl(req: Request, res: Response) {
     if (!event || event.isDeleted || !event.ivsChannelArn) {
         return res.status(404).json({ message: 'Event or IVS channel not found' });
     }
+      CreateActivity({
+    user: userId as unknown as mongoose.Types.ObjectId,
+    eventData: `User requested playbackurl for event ${event.name}`,
+    component: 'event',
+    activityType: 'playbackurl'
+    });
     // IVS playback URL format: https://{playbackUrl}/index.m3u8
     res.json({ playbackUrl: event.ivsPlaybackUrl });
  }
@@ -710,6 +754,12 @@ async getPlaybackUrl(req: Request, res: Response) {
     type: "replay"
   })
 }
+  CreateActivity({
+    user: userId as unknown as mongoose.Types.ObjectId,
+    eventData: `User requested broadcasturl for event ${event.name}`,
+    component: 'event',
+    activityType: 'broadcasturl'
+    });
     res.json({ savedBroadcastUrl: event.ivsSavedBroadcastUrl });
  }
 
@@ -863,6 +913,7 @@ async eventStatistics(req: Request, res: Response)  {
   try {
     const { eventId } = req.params;
     const { month: selectedMonth, currency: selectedCurrency } = req.query;
+    const userId = req.user.id;
     
     const pipeline: any = await getEventAnalytics(eventId, selectedMonth as string, selectedCurrency as string);
     const result = await Event.aggregate(pipeline);
@@ -870,7 +921,12 @@ async eventStatistics(req: Request, res: Response)  {
     if (result.length === 0) {
       return res.status(404).json({ message: 'Event not found' });
     }
-    
+    CreateActivity({
+    user: userId as unknown as mongoose.Types.ObjectId,
+    eventData: `User requested statistics for event ${result[0].name}`,
+    component: 'event',
+    activityType: 'statistics'
+    });
     res.json(result[0]);
   } catch (error) {
     console.error('Error fetching event analytics:', error);
