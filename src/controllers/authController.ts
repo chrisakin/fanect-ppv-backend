@@ -206,7 +206,11 @@ class AuthController {
             }
 
             if(user.isDeleted) {
-                return res.status(400).json({ message: 'User account has been deleted. Kinldy contact support' });
+                return res.status(400).json({ message: 'User account has been deleted. Kindly contact support' });
+            }
+
+            if(user.locked) {
+                return res.status(403).json({ message: 'User account is locked. Kindly contact support' });
             }
             if(user.isVerified === false) {
                 const verificationCode = Math.floor(100000 + Math.random() * 900000).toString(); // Generate 6-digit code

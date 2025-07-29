@@ -9,6 +9,7 @@ import { broadcastEventStatus } from '../../services/sseService';
 import mongoose, { Types } from 'mongoose';
 import { paginateAggregate } from '../../services/paginationService';
 import s3Service from '../../services/s3Service';
+import { getEventAnalytics } from '../../services/analyticsService';
 
 class EventController {
     constructor() {
@@ -20,7 +21,7 @@ class EventController {
 
         try {
             const event = await Event.findById(id).populate('createdBy', 'username email firstName lastName');
-            if (!event) {
+            if (!event || event.isDeleted) {
                 return res.status(404).json({ message: 'Event not found' });
             }
             if(event.published) {
@@ -66,7 +67,7 @@ class EventController {
 
         try {
             const event = await Event.findById(id);
-            if (!event) {
+            if (!event || event.isDeleted) {
                 return res.status(404).json({ message: 'Event not found' });
             }
 
@@ -86,7 +87,7 @@ class EventController {
         const { rejectionReason } = req.body
         try {
             const event = await Event.findById(id).populate('createdBy', 'username email firstName lastName');
-            if (!event) {
+            if (!event || event.isDeleted) {
                 return res.status(404).json({ message: 'Event not found' });
             }
 
@@ -117,7 +118,7 @@ class EventController {
 
         try {
             const event = await Event.findById(id);
-            if (!event) {
+            if (!event || event.isDeleted) {
                 return res.status(404).json({ message: 'Event not found' });
             }
             if(!event.published) {
@@ -272,6 +273,29 @@ async getEventById(req: Request, res: Response) {
   }
 }
 
+async getSingleEventMetrics(req: Request, res: Response) {
+   const { id } = req.params;
+    const { month: selectedMonth, currency: selectedCurrency } = req.query;
+  try {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ message: 'Invalid event ID' });
+  }
+    const pipeline: any = await getEventAnalytics(id, selectedMonth as string, selectedCurrency as string);
+    const result = await Event.aggregate(pipeline);
+      if (result.length === 0) {
+      return res.status(404).json({ message: 'Event not found' });
+    }
+    
+    res.json(result[0]);  
+  
+  } catch (error) {
+    console.error('Get event by ID error:', error);
+    return res.status(500).json({
+      message: 'Something went wrong. Please try again later',
+    });
+  }
+}
+
 async createEvent(req: Request, res: Response) {
         const { name, date, time, description, prices, haveBroadcastRoom, broadcastSoftware, scheduledTestDate } = req.body;
         const userId = req.admin.id;
@@ -337,7 +361,7 @@ async createEvent(req: Request, res: Response) {
      async updateEvent(req: Request, res: Response) {
             const { id } = req.params;
             const { name, date, time, description, prices, haveBroadcastRoom, broadcastSoftware, scheduledTestDate } = req.body;
-            const userId = req.user.id;
+            const userId = req.admin.id;
             try {
                  let price
             // if(!prices ) {
@@ -351,11 +375,11 @@ async createEvent(req: Request, res: Response) {
             }
            }
                 const event = await Event.findById(id);
-                if (!event) {
+                if (!event || event.isDeleted) {
                     return res.status(404).json({ message: 'Event not found' });
                 }
     
-                if (event.createdBy.toString() !== req.user.id) {
+                if (event.createdBy.toString() !== req.admin.id) {
                     return res.status(403).json({ message: 'Unauthorized' });
                 }
     

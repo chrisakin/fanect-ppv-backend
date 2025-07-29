@@ -80,7 +80,7 @@ export async function getAllBanks(country: string = 'NG') {
                 },
             }
         );
-        return response.data; // Contains array of banks
+        return response.data;
     } catch (error) {
         if (axios.isAxiosError(error)) {
             console.error('Flutterwave getAllBanks error:', error.response?.data || error.message);
