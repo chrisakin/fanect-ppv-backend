@@ -274,7 +274,7 @@ async getEventById(req: Request, res: Response) {
 
 async createEvent(req: Request, res: Response) {
         const { name, date, time, description, prices, haveBroadcastRoom, broadcastSoftware, scheduledTestDate } = req.body;
-        const userId = req.user.id;
+        const userId = req.admin.id;
         let price
         if(!prices ) {
            return res.status(400).json({ message: 'At least one price is required' });
