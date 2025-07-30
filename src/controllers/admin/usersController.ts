@@ -20,6 +20,12 @@ class usersController {
     if (req.query.status) {
       filter.status = req.query.status as UserStatus;
     }
+    if(req.query.verified) {
+      filter.isVerified = req.query.verified == 'verified' ? true : false;
+    }
+    if(req.query.locked) {
+      filter.locked = req.query.locked == 'locked' ? true : false;
+    }
 
     const pipeline: any[] = [];
 
