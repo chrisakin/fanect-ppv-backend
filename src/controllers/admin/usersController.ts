@@ -49,23 +49,10 @@ class usersController {
       },
     });
 
-    // Add lookup to Transactions for total payments
-    pipeline.push({
-      $lookup: {
-        from: 'transactions',
-        localField: '_id',
-        foreignField: 'user',
-        as: 'userTransactions',
-      },
-    });
-
     // Add computed fields
     pipeline.push({
       $addFields: {
         eventsJoinedCount: { $size: '$joinedEvents' },
-        totalAmountPaid: {
-          $sum: '$userTransactions.amount',
-        },
       },
     });
 
@@ -80,7 +67,6 @@ class usersController {
         lastLogin: 1,
         locked: 1,
         eventsJoinedCount: 1,
-        totalAmountPaid: 1,
         createdAt: 1,
         email: 1,
         isVerified:1,
