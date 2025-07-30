@@ -357,6 +357,7 @@ if (search?.trim()) {
        }
    
        user.status = UserStatus.INACTIVE;
+       user.locked = true;
        await user.save();
    
        return res.status(200).json({
@@ -385,6 +386,7 @@ if (search?.trim()) {
        }
 
        user.status = UserStatus.ACTIVE;
+       user.locked = false;
        await user.save();
 
        return res.status(200).json({
