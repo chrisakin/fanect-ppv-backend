@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import User from '../models/User';
+import User, { UserStatus } from '../models/User';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
@@ -63,6 +63,7 @@ class AuthController {
                 verificationCode,
                 verificationCodeExpires,
                 isVerified: false,
+                status: UserStatus.INACTIVE
             });
 
             await newUser.save();
@@ -174,6 +175,8 @@ class AuthController {
     const refreshToken = this.generateRefreshToken(userId);
     user.refreshToken = refreshToken;
     user.sessionToken = sessionToken
+    user.lastLogin = new Date();
+    user.status = UserStatus.ACTIVE;
     await user.save({ session });
     CreateActivity({
       user: user._id as mongoose.Types.ObjectId,  
@@ -257,6 +260,7 @@ class AuthController {
             // Optionally store the refresh token in the database
             user.refreshToken = refreshToken;
             user.sessionToken = sessionToken
+            user.lastLogin = new Date();
             await user.save();
               CreateActivity({
                     user: user._id as mongoose.Types.ObjectId,
@@ -471,7 +475,8 @@ async googleAuth(req: Request, res: Response) {
           email,
           firstName,
           lastName,
-          isVerified: true, // Google accounts are already verified
+          isVerified: true,
+          status: UserStatus.ACTIVE
         });
 
         const userId = (user._id as mongoose.Types.ObjectId).toString();
@@ -502,6 +507,7 @@ async googleAuth(req: Request, res: Response) {
     // Store the refresh token
     user.refreshToken = refreshToken;
     user.sessionToken = sessionToken
+    user.lastLogin = new Date();
 
     // Save user with session
     await user.save({ session });
@@ -551,6 +557,7 @@ async appleAuth(req: Request, res: Response) {
           firstName,
           lastName,
           isVerified: true,
+          status: UserStatus.ACTIVE
         });
 
         const userId = (user._id as mongoose.Types.ObjectId).toString();
@@ -580,6 +587,7 @@ async appleAuth(req: Request, res: Response) {
     user.refreshToken = refreshToken;
     user.appleId = appleId;
     user.sessionToken = sessionToken
+    user.lastLogin = new Date();
 
     await user.save({ session });
 

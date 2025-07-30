@@ -6,55 +6,107 @@ import { paginateAggregate } from '../../services/paginationService';
 import Streampass from '../../models/Streampass';
 import Activity from '../../models/Activity';
 import Transactions from '../../models/Transactions';
+import { create } from 'domain';
 
 class usersController {
 
-   async getAllUsers(req: Request, res: Response) {
-     try {
-       const page = Number(req.query.page) || 1;
-       const limit = Number(req.query.limit) || 10;
-       const search = req.query.search as string | undefined;
-       const filter: any = {};
-   
-       if (req.query.status) {
-         filter.status = req.query.status as UserStatus;
-       }
-       const pipeline: any[] = [];
-   
-       // Base filters
-       pipeline.push({ $match: filter });
-   
-       // Search filter
-       if (search?.trim()) {
-         pipeline.push({
-           $match: {
-             $or: [
-               { firstName: { $regex: search, $options: 'i' } },
-               { lastName: { $regex: search, $options: 'i' } },
-               { email: { $regex: search, $options: 'i' } },
-             ],
-           },
-         });
-       }
-   
-       // Sorting
-       const sortBy = (req.query.sortBy as string) || 'createdAt';
-       const sortOrderStr = (req.query.sortOrder as string) || 'desc';
-       const sortOrder = sortOrderStr.toLowerCase() === 'desc' ? -1 : 1;
-   
-       pipeline.push({ $sort: { [sortBy]: sortOrder } });
-   
-       const result = await paginateAggregate(User, pipeline, { page, limit });
-   
-       res.status(200).json({
-         message: 'Users gotten successfully',
-         ...result,
-       });
-     } catch (error) {
-       console.error(error);
-       res.status(500).json({ message: 'Something went wrong. Please try again later' });
-     }
-   }
+ async getAllUsers(req: Request, res: Response) {
+  try {
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 10;
+    const search = req.query.search as string | undefined;
+    const filter: any = {};
+
+    if (req.query.status) {
+      filter.status = req.query.status as UserStatus;
+    }
+
+    const pipeline: any[] = [];
+
+    // Base filters
+    pipeline.push({ $match: filter });
+
+    // Search filter
+    if (search?.trim()) {
+      pipeline.push({
+        $match: {
+          $or: [
+            { firstName: { $regex: search, $options: 'i' } },
+            { lastName: { $regex: search, $options: 'i' } },
+            { email: { $regex: search, $options: 'i' } },
+          ],
+        },
+      });
+    }
+
+    // Add lookup to Streampass for events joined
+    pipeline.push({
+      $lookup: {
+        from: 'streampasses',
+        localField: '_id',
+        foreignField: 'user',
+        as: 'joinedEvents',
+      },
+    });
+
+    // Add lookup to Transactions for total payments
+    pipeline.push({
+      $lookup: {
+        from: 'transactions',
+        localField: '_id',
+        foreignField: 'user',
+        as: 'userTransactions',
+      },
+    });
+
+    // Add computed fields
+    pipeline.push({
+      $addFields: {
+        eventsJoinedCount: { $size: '$joinedEvents' },
+        totalAmountPaid: {
+          $sum: '$userTransactions.amount',
+        },
+      },
+    });
+
+    // Final projection
+    pipeline.push({
+      $project: {
+        _id: 1,
+        firstName: 1,
+        lastName: 1,
+        username: 1,
+        status: 1,
+        lastLogin: 1,
+        locked: 1,
+        eventsJoinedCount: 1,
+        totalAmountPaid: 1,
+        createdAt: 1,
+        email: 1,
+        isVerified:1,
+      },
+    });
+
+    // Sorting
+    const sortBy = (req.query.sortBy as string) || 'createdAt';
+    const sortOrderStr = (req.query.sortOrder as string) || 'desc';
+    const sortOrder = sortOrderStr.toLowerCase() === 'desc' ? -1 : 1;
+
+    pipeline.push({ $sort: { [sortBy]: sortOrder } });
+
+    const result = await paginateAggregate(User, pipeline, { page, limit });
+
+    res.status(200).json({
+      message: 'Users gotten successfully',
+      ...result,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Something went wrong. Please try again later' });
+  }
+}
+
+
    
    async getUserById(req: Request, res: Response) {
      const { id } = req.params;
