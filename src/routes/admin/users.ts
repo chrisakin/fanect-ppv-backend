@@ -4,9 +4,6 @@ import UserController from '../../controllers/admin/usersController';
 
 const router = Router();
 
-// router.post('/create', adminAuthMiddleware, UserController.createUser);
-// router.put('/update/:id', adminAuthMiddleware, UserController.updateUser);
-// router.delete('/delete/:id', adminAuthMiddleware, UserController.deleteUser);
 router.get('/all-users', adminAuthMiddleware, UserController.getAllUsers);
 router.get('/single-user/:id', adminAuthMiddleware, UserController.getUserById);
 router.post('/lock-user/:id', adminAuthMiddleware, UserController.lockUser);
