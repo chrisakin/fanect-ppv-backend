@@ -81,7 +81,7 @@ class usersController {
 
     // Sorting
     const sortBy = (req.query.sortBy as string) || 'createdAt';
-    const sortOrderStr = (req.query.sortOrder as string) || 'desc';
+    const sortOrderStr = (req.query.sortOrder as string) || 'asc';
     const sortOrder = sortOrderStr.toLowerCase() === 'desc' ? -1 : 1;
 
     pipeline.push({ $sort: { [sortBy]: sortOrder } });
@@ -98,33 +98,65 @@ class usersController {
   }
 }
 
+async getUserById(req: Request, res: Response) {
+  const { id } = req.params;
 
-   
-   async getUserById(req: Request, res: Response) {
-     const { id } = req.params;
-     if (!mongoose.Types.ObjectId.isValid(id)) {
-       return res.status(400).json({ message: 'Invalid event ID' });
-     }
-     
-     try {
-       const results = await User.findById(id).select('-password -refreshToken -resetPasswordToken -resetPasswordExpires -verificationCode -verificationCodeExpires -__v');
-   
-       if (!results) {
-         return res.status(404).json({ message: 'User not found' });
-       }
-   
-       return res.status(200).json({
-         message: 'User fetched successfully',
-         results
-       });
-   
-     } catch (error) {
-       console.error('Get user by ID error:', error);
-       return res.status(500).json({
-         message: 'Something went wrong. Please try again later',
-       });
-     }
-   }
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ message: 'Invalid user ID' });
+  }
+
+  try {
+    const pipeline: any[] = [
+      {
+        $match: { _id: new mongoose.Types.ObjectId(id) }
+      },
+      {
+        $lookup: {
+          from: 'streampasses',
+          localField: '_id',
+          foreignField: 'user',
+          as: 'joinedEvents'
+        }
+      },
+      {
+        $addFields: {
+          eventsJoinedCount: { $size: '$joinedEvents' }
+        }
+      },
+      {
+        $project: {
+          _id: 1,
+          firstName: 1,
+          lastName: 1,
+          username: 1,
+          status: 1,
+          lastLogin: 1,
+          locked: 1,
+          eventsJoinedCount: 1,
+          createdAt: 1,
+          email: 1,
+          isVerified: 1
+        }
+      }
+    ];
+
+    const result = await User.aggregate(pipeline);
+
+    if (!result || result.length === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.status(200).json({
+      message: 'User retrieved successfully',
+      user: result[0]
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Something went wrong. Please try again later' });
+  }
+}
+
+
 
    async getEventsJoinedByUser(req: Request, res: Response) {
      const { id } = req.params; 
