@@ -5,8 +5,9 @@ import mongoose from 'mongoose';
 import { paginateAggregate } from '../../services/paginationService';
 import Streampass from '../../models/Streampass';
 import Activity from '../../models/Activity';
-import Transactions from '../../models/Transactions';
+import Transactions, { TransactionStatus } from '../../models/Transactions';
 import { create } from 'domain';
+import { AdminStatus } from '../../models/Event';
 
 class usersController {
 
@@ -159,73 +160,83 @@ async getUserById(req: Request, res: Response) {
 
 
    async getEventsJoinedByUser(req: Request, res: Response) {
-     const { id } = req.params; 
-      if (!mongoose.Types.ObjectId.isValid(id)) {
-        return res.status(400).json({ message: 'Invalid user ID' });
-      }
-       try {
-       const page = Number(req.query.page) || 1;
-       const limit = Number(req.query.limit) || 10;
-       const search = req.query.search as string | undefined;
-       const filter: any = {};
-   
-       if (req.query.status) {
-         filter.status = req.query.status as UserStatus;
-       }
-     const pipeline: any[] = [
-  {
-    $match: { user: new mongoose.Types.ObjectId(id) }
-  },
-  {
-    $lookup: {
-      from: 'events',
-      localField: 'event',
-      foreignField: '_id',
-      as: 'event'
-    }
-  },
-  {
-    $unwind: '$event'
-  },
-  {
-    $project: {
-      _id: 0,
-      event: {
-        _id: 1,
-        title: 1,
-        description: 1,
-        date: 1,
-        time: 1,
-        location: 1
-      }
-    }
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ message: 'Invalid user ID' });
   }
-];
-if (search?.trim()) {
-         pipeline.push({
-           $match: {
-             $or: [
-               { firstName: { $regex: search, $options: 'i' } },
-               { lastName: { $regex: search, $options: 'i' } },
-               { email: { $regex: search, $options: 'i' } },
-             ],
-           },
-         });
-       }
-   
-       // Sorting
-       const sortBy = (req.query.sortBy as string) || 'createdAt';
-       const sortOrderStr = (req.query.sortOrder as string) || 'desc';
-       const sortOrder = sortOrderStr.toLowerCase() === 'desc' ? -1 : 1;
-   
-       pipeline.push({ $sort: { [sortBy]: sortOrder } });
-        const events = await paginateAggregate(Streampass, pipeline, { page, limit });
-        res.status(200).json({ message: 'Events joined by user fetched successfully', events });
-      } catch (error) {
-        console.error('Error fetching events joined by user:', error);
-        res.status(500).json({ message: 'Something went wrong. Please try again later' });
-      }
+
+  try {
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 10;
+    const search = req.query.search as string | undefined;
+
+    const filter: any = {};
+
+    if (req.query.status) {
+      filter['event.status'] = req.query.status;
     }
+    if (req.query.adminStatus) {
+      filter['event.adminStatus'] = req.query.adminStatus;
+    }
+    if (search?.trim()) {
+      filter['event.name'] = { $regex: search, $options: 'i' };
+    }
+
+    const pipeline: any[] = [
+      {
+        $match: { user: new mongoose.Types.ObjectId(id) }
+      },
+      {
+        $lookup: {
+          from: 'events',
+          localField: 'event',
+          foreignField: '_id',
+          as: 'event'
+        }
+      },
+      {
+        $unwind: '$event'
+      },
+      {
+        $replaceWith: '$event' // flatten the pipeline to only the event documents
+      },
+      {
+        $match: filter
+      },
+      {
+        $project: {
+          _id: 1,
+          name: 1,
+          description: 1,
+          date: 1,
+          time: 1,
+          status: 1,
+          adminStatus: 1,
+          bannerUrl: 1,
+          createdAt: 1
+        }
+      },
+      {
+        $sort: {
+          [req.query.sortBy as string || 'createdAt']: 
+            (req.query.sortOrder as string || 'desc').toLowerCase() === 'desc' ? -1 : 1
+        }
+      }
+    ];
+
+    const events = await paginateAggregate(Streampass, pipeline, { page, limit });
+
+    res.status(200).json({
+      message: 'Events joined by user fetched successfully',
+      events
+    });
+  } catch (error) {
+    console.error('Error fetching events joined by user:', error);
+    res.status(500).json({ message: 'Something went wrong. Please try again later' });
+  }
+}
+
 
     async getUserActivities(req: Request, res: Response) {
      const { id } = req.params;
@@ -292,22 +303,18 @@ if (search?.trim()) {
         const filter: any = {};
     
         if (req.query.status) {
-          filter.status = req.query.status as UserStatus;
+          filter.status = req.query.status as TransactionStatus;
         }
         if(req.query.giftStatus) {
-          filter.isGift = req.query.giftStatus === 'gift' ? true : false;
+          filter.isGift = req.query.giftStatus == 'gift' ? true : false;
         }
-    
-        // const pipeline: any[] = [
-        //   { $match: { user: new mongoose.Types.ObjectId(id) } },
-        //   { $lookup: { from: 'events', localField: 'event', foreignField: '_id', as: 'eventDetails' } },
-        //   { $unwind: '$eventDetails' },
-        //   { $project: { _id: 1, eventName: '$eventDetails.name', eventDate: '$eventDetails.date', eventTime: '$eventDetails.time', status: '$eventDetails.status', adminStatus: '$eventDetails.adminStatus'} }
-        // ];
+        if(req.query.paymentMethod) {
+          filter.paymentMethod = req.query.paymentMethod as 'flutterwave' | 'stripe';
+        } 
 
         const pipeline: any[] = [
   { 
-    $match: { user: new mongoose.Types.ObjectId(id) } 
+    $match: { user: new mongoose.Types.ObjectId(id), ...filter, } 
   },
   { 
     $lookup: { 
@@ -339,8 +346,8 @@ if (search?.trim()) {
   },
   {
     $project: {
-      eventDetails: 0, // optional: remove full eventDetails if not needed
-      event: 0         // optional: remove event ID if not needed
+      eventDetails: 0,
+      event: 0
     }
   }
 ];
@@ -349,7 +356,9 @@ if (search?.trim()) {
           pipeline.push({
             $match: {
               $or: [
-                { 'transactionDetails.data': { $regex: search, $options: 'i' } },
+                { 'eventDetails.name': { $regex: search, $options: 'i' } },
+                { paymentReference: { $regex: search, $options: 'i' } },
+                { currency: { $regex: search, $options: 'i' } },
                 { amount: { $regex: search, $options: 'i' } },
               ],
             },
