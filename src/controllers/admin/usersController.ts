@@ -356,7 +356,7 @@ async getUserById(req: Request, res: Response) {
           pipeline.push({
             $match: {
               $or: [
-                { 'eventDetails.name': { $regex: search, $options: 'i' } },
+                { eventName: { $regex: search, $options: 'i' } },
                 { paymentReference: { $regex: search, $options: 'i' } },
                 { currency: { $regex: search, $options: 'i' } },
                 { amount: { $regex: search, $options: 'i' } },
