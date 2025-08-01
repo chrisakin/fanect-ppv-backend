@@ -306,8 +306,8 @@ async  getEventsJoinedByUser(req: Request, res: Response) {
         const startDate = req.query.startDate ? new Date(req.query.startDate as string) : null;
         const endDate = req.query.endDate ? new Date(req.query.endDate as string) : null;
 
-        if (req.query.status) {
-          filter.status = req.query.status as UserStatus;
+        if (req.query.component) {
+          filter.component = req.query.component;
         }
 
         const dateMatch: any = {};
@@ -316,7 +316,7 @@ async  getEventsJoinedByUser(req: Request, res: Response) {
 
     
         const pipeline: any[] = [
-          { $match: { user: new mongoose.Types.ObjectId(id) } },
+          { $match: { user: new mongoose.Types.ObjectId(id), ...filter} },
           { $lookup: { from: 'users', localField: 'user', foreignField: '_id', as: 'userDetails' } },
           { $unwind: '$userDetails' },
           { $project: { _id: 1, userName: '$userDetails.firstName', eventData: 1, component: 1, createdAt: 1, activityType: 1 } }
@@ -326,9 +326,7 @@ async  getEventsJoinedByUser(req: Request, res: Response) {
           pipeline.push({
             $match: {
               $or: [
-                { 'userDetails.firstName': { $regex: search, $options: 'i' } },
-                { 'userDetails.lastName': { $regex: search, $options: 'i' } },
-                { email: { $regex: search, $options: 'i' } },
+                { eventData: { $regex: search, $options: 'i' } },
               ],
             },
           });
