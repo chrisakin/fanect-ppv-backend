@@ -8,6 +8,7 @@ import Activity from '../../models/Activity';
 import Transactions, { TransactionStatus } from '../../models/Transactions';
 import { create } from 'domain';
 import { AdminStatus } from '../../models/Event';
+import { EventStatus } from 'aws-sdk/clients/launchwizard';
 
 class usersController {
 
@@ -191,14 +192,12 @@ async  getEventsJoinedByUser(req: Request, res: Response) {
 
     const filter: any = {};
     if (req.query.status) {
-      filter['status'] = req.query.status;
+      filter['status'] = req.query.status as EventStatus;
     }
     if (req.query.adminStatus) {
-      filter['adminStatus'] = req.query.adminStatus;
+      filter['adminStatus'] = req.query.adminStatus as AdminStatus;
     }
-    if (search?.trim()) {
-      filter['name'] = { $regex: search, $options: 'i' };
-    }
+   
 
     const dateMatch: any = {};
     if (startDate) dateMatch.$gte = startDate;
@@ -234,6 +233,17 @@ async  getEventsJoinedByUser(req: Request, res: Response) {
     // Filter by event fields
     if (Object.keys(filter).length > 0) {
       pipeline.push({ $match: filter });
+    }
+     if (search?.trim()) {
+      pipeline.push({
+        $match: {
+          $or: [
+            { name: { $regex: search, $options: 'i' } },
+            { description: { $regex: search, $options: 'i' } },
+            { broadcastSoftware: { $regex: search, $options: 'i' } },
+          ],
+        },
+      });
     }
 
     // Date filtering
