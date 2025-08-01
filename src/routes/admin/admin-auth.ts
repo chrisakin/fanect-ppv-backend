@@ -34,6 +34,8 @@ router.post('/reset/:token', authController.resetPassword);
 // In your auth routes file
 router.delete('/delete-account', verifyToken, authController.deleteAccount);
 router.post('/create-admin', authController.createAdmin);
-router.get('/get-all-admin', )
-
+router.get('/get-all-admin', verifyToken, authController.getAllAdmin)
+router.get('/single-admin/:id', verifyToken, authController.getAdminById)
+router.put('/unlock-user/:id', verifyToken, authController.unlockUser)
+router.put('/lock-user/:id', verifyToken, authController.lockUser)
 export default router;
