@@ -266,7 +266,8 @@ async  getEventsJoinedByUser(req: Request, res: Response) {
         status: 1,
         adminStatus: 1,
         bannerUrl: 1,
-        createdAt: 1
+        createdAt: 1,
+        prices: 1
       }
     });
 
