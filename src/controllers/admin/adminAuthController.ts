@@ -7,7 +7,7 @@ import { OAuth2Client } from 'google-auth-library';
 import { getOneAdmin } from '../../services/userService';
 import { verifyAppleIdToken } from '../../services/appleAuthService';
 import mongoose from 'mongoose';
-import Admin from '../../models/Admin';
+import Admin, { AdminRolesEnum } from '../../models/Admin';
 
 const client = new OAuth2Client(process.env.GOOGLE_LOGIN_CLIENT_ID);
 
@@ -58,6 +58,7 @@ class AuthController {
                 verificationCode,
                 verificationCodeExpires,
                 isVerified: false,
+                roles: AdminRolesEnum.SUPERADMIN
             });
 
             await newUser.save();
@@ -216,13 +217,6 @@ class AuthController {
                 { code: verificationCode, year: new Date().getFullYear() }
             );
 
-            // const accessToken = this.generateAccessToken(((user._id as string).toString()), user.email, user.firstName);
-            // const refreshToken = this.generateRefreshToken(((user._id as string).toString()));
-
-            // // Optionally store the refresh token in the database
-            // user.refreshToken = refreshToken;
-            // await user.save();
-
             res.status(201).json({ message: 'Admin logged in successfully. Please input the otp sent to your email.' });
         } catch (error) {
             res.status(500).json({ message: 'Something went wrong. Please try again later' });
@@ -339,6 +333,46 @@ class AuthController {
         }
     }
 
+    async createAdmin(req: Request, res: Response) {
+            const { email, firstName, lastName, role } = req.body;
+            try {
+            if(!email || !firstName || !lastName || !role) {
+                return res.status(400).json({ message: 'All fields are required' });
+            }
+            const existingUser = await Admin.findOne({ email });
+            if (existingUser) {
+                return res.status(400).json({ message: 'Admin already exists' });
+            }
+            const username = email.split('@')[0]; // Use part of the email as username
+            const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+            if (!isEmailValid) {
+                return res.status(400).json({ message: 'Invalid email format' });
+            }
+            const resetToken = crypto.randomBytes(20).toString('hex');
+            const newUser = new Admin({
+                username,
+                email,
+                firstName,
+                lastName,
+                resetPasswordToken: resetToken,
+                resetPasswordExpires: Date.now() + 3600000,
+                isVerified: false,
+                role
+            });
+            await newUser.save();
+            const resetUrl = `${process.env.ADMIN_FRONTEND_URL}/reset/${resetToken}`;
+            await EmailService.sendEmail(
+                email,
+                'Password Reset',
+                'passwordReset',
+                { resetUrl , year: new Date().getFullYear()}
+            );
+            res.status(200).json({ message: 'Admin created successfully and Password create email sent' });
+            } catch (error) {
+            res.status(500).json({ message: 'Something went wrong. Please try again later' });
+            }
+    }
+
     async resetPassword(req: Request, res: Response) {
         const { token } = req.params;
         const { password } = req.body;
@@ -360,6 +394,7 @@ class AuthController {
             user.password = hashedPassword;
             user.resetPasswordToken = undefined;
             user.resetPasswordExpires = undefined;
+            user.isVerified = true;
             await user.save();
 
             res.status(200).json({ message: 'Password has been reset' });

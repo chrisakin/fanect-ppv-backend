@@ -1,5 +1,9 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
+export enum AdminRolesEnum {
+    SUPERADMIN = "Superadmin",
+    ASSISTANT = "Assistant"
+}
 export interface IAdmin extends Document {
     email: string;
     password: string;
@@ -18,6 +22,8 @@ export interface IAdmin extends Document {
     deviceTokens: string[];
     isDeleted?: boolean;
     appleId?: string;
+    roles: string;
+    permissions: []
 }
 
 const AdminSchema: Schema = new Schema({
@@ -37,7 +43,10 @@ const AdminSchema: Schema = new Schema({
     emailNotifLiveStreamEnds: { type: Boolean, default: true },
     deviceTokens: { type: [String], default: [] },
     isDeleted: { type: Boolean, default: false },
-    appleId: { type: String }
+    appleId: { type: String },
+    role: { type: String },
+    assistantRole: { type: String },
+    permissions: {type: [String], }
 },
 { timestamps: true });
 
