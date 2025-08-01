@@ -262,7 +262,7 @@ async  getEventsJoinedByUser(req: Request, res: Response) {
 
     // Sorting
     const sortField = req.query.sortBy as string || 'createdAt';
-    const sortOrder = (req.query.sortOrder as string || 'desc').toLowerCase() === 'desc' ? -1 : 1;
+    const sortOrder = (req.query.sortOrder as string || 'desc').toLowerCase() === 'desc' ? 1 : -1;
 
     pipeline.push({
       $sort: {
@@ -334,7 +334,7 @@ async  getEventsJoinedByUser(req: Request, res: Response) {
         // Sorting
         const sortBy = (req.query.sortBy as string) || 'createdAt';
         const sortOrderStr = (req.query.sortOrder as string) || 'desc';
-        const sortOrder = sortOrderStr.toLowerCase() === 'desc' ? -1 : 1;
+        const sortOrder = sortOrderStr.toLowerCase() === 'desc' ? 1 : -1;
     
         pipeline.push({ $sort: { [sortBy]: sortOrder } });
     
@@ -444,7 +444,7 @@ async  getEventsJoinedByUser(req: Request, res: Response) {
         // Sorting
         const sortBy = (req.query.sortBy as string) || 'createdAt';
         const sortOrderStr = (req.query.sortOrder as string) || 'desc';
-        const sortOrder = sortOrderStr.toLowerCase() === 'desc' ? -1 : 1;
+        const sortOrder = sortOrderStr.toLowerCase() === 'desc' ? 1 : -1;
     
         pipeline.push({ $sort: { [sortBy]: sortOrder } });
     

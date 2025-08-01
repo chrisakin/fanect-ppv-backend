@@ -54,6 +54,7 @@ const UserSchema: Schema = new Schema({
     appleId: { type: String },
     locked: { type: Boolean, default: false },
     sessionToken: { type: String }
-});
+},
+{ timestamps: true });
 
 export default mongoose.model<IUser>('User', UserSchema);

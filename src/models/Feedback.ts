@@ -16,6 +16,7 @@ const FeedbackSchema = new Schema<IFeedback>({
     ratings: { type: Number, required: true, min: 1, max: 5 },
     comments: { type: String },
     createdAt: { type: Date, default: Date.now }
-});
+},
+{ timestamps: true });
 
 export default mongoose.model<IFeedback>('Feedback', FeedbackSchema);

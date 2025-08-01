@@ -38,6 +38,7 @@ const AdminSchema: Schema = new Schema({
     deviceTokens: { type: [String], default: [] },
     isDeleted: { type: Boolean, default: false },
     appleId: { type: String }
-});
+},
+{ timestamps: true });
 
 export default mongoose.model<IAdmin>('Admin', AdminSchema);

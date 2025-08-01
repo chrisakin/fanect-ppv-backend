@@ -14,6 +14,7 @@ const ActivitySchema = new Schema<IActivity>({
     component: { type: String },
     createdAt: { type: Date, default: Date.now }, 
     activityType: {type: String }
-});
+},
+{ timestamps: true });
 
 export default mongoose.model<IActivity>('Activity', ActivitySchema);
