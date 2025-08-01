@@ -284,7 +284,7 @@ async  getEventsJoinedByUser(req: Request, res: Response) {
 
     res.status(200).json({
       message: 'Events joined by user fetched successfully',
-      events
+      ...events
     });
   } catch (error) {
     console.error('Error fetching events joined by user:', error);
