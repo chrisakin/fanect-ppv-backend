@@ -17,6 +17,8 @@ class usersController {
     const limit = Number(req.query.limit) || 10;
     const search = req.query.search as string | undefined;
     const filter: any = {};
+     const startDate = req.query.startDate ? new Date(req.query.startDate as string) : null;
+    const endDate = req.query.endDate ? new Date(req.query.endDate as string) : null;
 
     if (req.query.status) {
       filter.status = req.query.status as UserStatus;
@@ -32,6 +34,22 @@ class usersController {
 
     // Base filters
     pipeline.push({ $match: filter });
+
+        if (startDate || endDate) {
+      const dateMatch: any = {};
+      if (startDate) {
+        dateMatch.$gte = startDate;
+      }
+      if (endDate) {
+        dateMatch.$lte = endDate;
+      }
+
+      pipeline.push({
+        $match: {
+          createdAt: dateMatch,
+        },
+      });
+    }
 
     // Search filter
     if (search?.trim()) {
@@ -157,9 +175,7 @@ async getUserById(req: Request, res: Response) {
   }
 }
 
-
-
-   async getEventsJoinedByUser(req: Request, res: Response) {
+async  getEventsJoinedByUser(req: Request, res: Response) {
   const { id } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -170,23 +186,35 @@ async getUserById(req: Request, res: Response) {
     const page = Number(req.query.page) || 1;
     const limit = Number(req.query.limit) || 10;
     const search = req.query.search as string | undefined;
+    const startDate = req.query.startDate ? new Date(req.query.startDate as string) : null;
+    const endDate = req.query.endDate ? new Date(req.query.endDate as string) : null;
 
     const filter: any = {};
-
     if (req.query.status) {
-      filter['event.status'] = req.query.status;
+      filter['status'] = req.query.status;
     }
     if (req.query.adminStatus) {
-      filter['event.adminStatus'] = req.query.adminStatus;
+      filter['adminStatus'] = req.query.adminStatus;
     }
     if (search?.trim()) {
-      filter['event.name'] = { $regex: search, $options: 'i' };
+      filter['name'] = { $regex: search, $options: 'i' };
     }
 
-    const pipeline: any[] = [
-      {
-        $match: { user: new mongoose.Types.ObjectId(id) }
-      },
+    const dateMatch: any = {};
+    if (startDate) dateMatch.$gte = startDate;
+    if (endDate) dateMatch.$lte = endDate;
+
+    const pipeline: any[] = [];
+
+    // Match user in Streampass (pivot table)
+    pipeline.push({
+      $match: {
+        user: new mongoose.Types.ObjectId(id)
+      }
+    });
+
+    // Join the event data
+    pipeline.push(
       {
         $lookup: {
           from: 'events',
@@ -199,31 +227,48 @@ async getUserById(req: Request, res: Response) {
         $unwind: '$event'
       },
       {
-        $replaceWith: '$event' // flatten the pipeline to only the event documents
-      },
-      {
-        $match: filter
-      },
-      {
-        $project: {
-          _id: 1,
-          name: 1,
-          description: 1,
-          date: 1,
-          time: 1,
-          status: 1,
-          adminStatus: 1,
-          bannerUrl: 1,
-          createdAt: 1
-        }
-      },
-      {
-        $sort: {
-          [req.query.sortBy as string || 'createdAt']: 
-            (req.query.sortOrder as string || 'desc').toLowerCase() === 'desc' ? -1 : 1
-        }
+        $replaceWith: '$event'
       }
-    ];
+    );
+
+    // Filter by event fields
+    if (Object.keys(filter).length > 0) {
+      pipeline.push({ $match: filter });
+    }
+
+    // Date filtering
+    if (startDate || endDate) {
+      pipeline.push({
+        $match: {
+          createdAt: dateMatch
+        }
+      });
+    }
+
+    // Project only the necessary fields
+    pipeline.push({
+      $project: {
+        _id: 1,
+        name: 1,
+        description: 1,
+        date: 1,
+        time: 1,
+        status: 1,
+        adminStatus: 1,
+        bannerUrl: 1,
+        createdAt: 1
+      }
+    });
+
+    // Sorting
+    const sortField = req.query.sortBy as string || 'createdAt';
+    const sortOrder = (req.query.sortOrder as string || 'desc').toLowerCase() === 'desc' ? -1 : 1;
+
+    pipeline.push({
+      $sort: {
+        [sortField]: sortOrder
+      }
+    });
 
     const events = await paginateAggregate(Streampass, pipeline, { page, limit });
 
@@ -237,7 +282,6 @@ async getUserById(req: Request, res: Response) {
   }
 }
 
-
     async getUserActivities(req: Request, res: Response) {
      const { id } = req.params;
       if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -248,10 +292,17 @@ async getUserById(req: Request, res: Response) {
         const limit = Number(req.query.limit) || 10;
         const search = req.query.search as string | undefined;
         const filter: any = {};
-    
+        const startDate = req.query.startDate ? new Date(req.query.startDate as string) : null;
+        const endDate = req.query.endDate ? new Date(req.query.endDate as string) : null;
+
         if (req.query.status) {
           filter.status = req.query.status as UserStatus;
         }
+
+        const dateMatch: any = {};
+    if (startDate) dateMatch.$gte = startDate;
+    if (endDate) dateMatch.$lte = endDate;
+
     
         const pipeline: any[] = [
           { $match: { user: new mongoose.Types.ObjectId(id) } },
@@ -271,6 +322,14 @@ async getUserById(req: Request, res: Response) {
             },
           });
         }
+
+         if (startDate || endDate) {
+      pipeline.push({
+        $match: {
+          createdAt: dateMatch
+        }
+      });
+    }
     
         // Sorting
         const sortBy = (req.query.sortBy as string) || 'createdAt';
@@ -301,6 +360,9 @@ async getUserById(req: Request, res: Response) {
         const limit = Number(req.query.limit) || 10;
         const search = req.query.search as string | undefined;
         const filter: any = {};
+        const startDate = req.query.startDate ? new Date(req.query.startDate as string) : null;
+        const endDate = req.query.endDate ? new Date(req.query.endDate as string) : null;
+
     
         if (req.query.status) {
           filter.status = req.query.status as TransactionStatus;
@@ -311,6 +373,11 @@ async getUserById(req: Request, res: Response) {
         if(req.query.paymentMethod) {
           filter.paymentMethod = req.query.paymentMethod as 'flutterwave' | 'stripe';
         } 
+
+      const dateMatch: any = {};
+      if (startDate) dateMatch.$gte = startDate;
+      if (endDate) dateMatch.$lte = endDate;
+
 
         const pipeline: any[] = [
   { 
@@ -351,6 +418,15 @@ async getUserById(req: Request, res: Response) {
     }
   }
 ];
+
+
+    if (startDate || endDate) {
+      pipeline.push({
+        $match: {
+          createdAt: dateMatch
+        }
+      });
+    }
     
         if (search?.trim()) {
           pipeline.push({
