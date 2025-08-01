@@ -288,6 +288,10 @@ class AuthController {
                 return res.status(403).json({ message: 'Invalid refresh token' });
             }
 
+             if(user.locked) {
+                return res.status(403).json({ message: 'User account is locked. Kindly contact support' });
+            }
+
             const newAccessToken = this.generateAccessToken((user._id as string).toString(), user.email, user.firstName);
             CreateActivity({
                user: user._id as mongoose.Types.ObjectId,

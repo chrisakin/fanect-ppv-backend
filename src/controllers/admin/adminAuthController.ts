@@ -7,7 +7,8 @@ import { OAuth2Client } from 'google-auth-library';
 import { getOneAdmin } from '../../services/userService';
 import { verifyAppleIdToken } from '../../services/appleAuthService';
 import mongoose from 'mongoose';
-import Admin, { AdminRolesEnum } from '../../models/Admin';
+import Admin, { AdminRolesEnum, AdminStatus } from '../../models/Admin';
+import { paginateAggregate } from '../../services/paginationService';
 
 const client = new OAuth2Client(process.env.GOOGLE_LOGIN_CLIENT_ID);
 
@@ -27,6 +28,9 @@ class AuthController {
         this.logout = this.logout.bind(this);
         this.changePassword = this.changePassword.bind(this);
         this.deleteAccount = this.deleteAccount.bind(this);
+        this.createAdmin = this.createAdmin.bind(this)
+        this.getAllAdmin = this.getAllAdmin.bind(this)
+        this.getAdminById = this.getAdminById.bind(this)
     }
 
     async register(req: Request, res: Response) {
@@ -58,7 +62,8 @@ class AuthController {
                 verificationCode,
                 verificationCodeExpires,
                 isVerified: false,
-                roles: AdminRolesEnum.SUPERADMIN
+                roles: AdminRolesEnum.SUPERADMIN,
+                status: AdminStatus.INACTIVE
             });
 
             await newUser.save();
@@ -156,6 +161,8 @@ class AuthController {
     const accessToken = this.generateAccessToken(userId, user.email, user.firstName);
     const refreshToken = this.generateRefreshToken(userId);
     user.refreshToken = refreshToken;
+    user.lastLogin = new Date()
+    user.status = AdminStatus.ACTIVE;
 
     await user.save({ session });
 
@@ -202,6 +209,9 @@ class AuthController {
             if(user.isDeleted) {
                 return res.status(400).json({ message: 'Admin account has been deleted. Kinldy contact support' });
             }
+            if(user.locked) {
+                return res.status(403).json({ message: 'Admin account is locked. Kindly contact support' });
+            }
             const verificationCode = Math.floor(100000 + Math.random() * 900000).toString(); // Generate 6-digit code
             const verificationCodeExpires = Date.now() + 3600000; // 1 hour
     
@@ -236,6 +246,9 @@ class AuthController {
 
             if (!user || user.refreshToken !== refreshToken) {
                 return res.status(403).json({ message: 'Invalid refresh token' });
+            }
+             if(user.locked) {
+                return res.status(403).json({ message: 'User account is locked. Kindly contact support' });
             }
 
             const newAccessToken = this.generateAccessToken((user._id as string).toString(), user.email, user.firstName);
@@ -357,6 +370,7 @@ class AuthController {
                 resetPasswordToken: resetToken,
                 resetPasswordExpires: Date.now() + 3600000,
                 isVerified: false,
+                status: AdminStatus.INACTIVE,
                 role
             });
             await newUser.save();
@@ -395,6 +409,8 @@ class AuthController {
             user.resetPasswordToken = undefined;
             user.resetPasswordExpires = undefined;
             user.isVerified = true;
+            user.lastLogin = new Date();
+            user.status = AdminStatus.ACTIVE;
             await user.save();
 
             res.status(200).json({ message: 'Password has been reset' });
@@ -613,6 +629,196 @@ async appleAuth(req: Request, res: Response) {
         res.status(500).json({ message: 'Something went wrong. Please try again later' });
     }
 }
+
+ async getAllAdmin(req: Request, res: Response) {
+  try {
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 10;
+    const search = req.query.search as string | undefined;
+    const filter: any = {};
+     const startDate = req.query.startDate ? new Date(req.query.startDate as string) : null;
+    const endDate = req.query.endDate ? new Date(req.query.endDate as string) : null;
+
+    if (req.query.status) {
+      filter.status = req.query.status as AdminStatus;
+    }
+    if(req.query.verified) {
+      filter.isVerified = req.query.verified == 'verified' ? true : false;
+    }
+    if(req.query.locked) {
+      filter.locked = req.query.locked == 'locked' ? true : false;
+    }
+
+    const pipeline: any[] = [];
+
+    // Base filters
+    pipeline.push({ $match: filter });
+
+        if (startDate || endDate) {
+      const dateMatch: any = {};
+      if (startDate) {
+        dateMatch.$gte = startDate;
+      }
+      if (endDate) {
+        dateMatch.$lte = endDate;
+      }
+
+      pipeline.push({
+        $match: {
+          createdAt: dateMatch,
+        },
+      });
+    }
+
+    // Search filter
+    if (search?.trim()) {
+      pipeline.push({
+        $match: {
+          $or: [
+            { firstName: { $regex: search, $options: 'i' } },
+            { lastName: { $regex: search, $options: 'i' } },
+            { email: { $regex: search, $options: 'i' } },
+          ],
+        },
+      });
+    }
+
+    // Final projection
+    pipeline.push({
+      $project: {
+        _id: 1,
+        firstName: 1,
+        lastName: 1,
+        username: 1,
+        status: 1,
+        lastLogin: 1,
+        locked: 1,
+        createdAt: 1,
+        email: 1,
+        isVerified:1,
+      },
+    });
+
+    // Sorting
+    const sortBy = (req.query.sortBy as string) || 'createdAt';
+    const sortOrderStr = (req.query.sortOrder as string) || 'asc';
+    const sortOrder = sortOrderStr.toLowerCase() === 'desc' ? -1 : 1;
+
+    pipeline.push({ $sort: { [sortBy]: sortOrder } });
+
+    const result = await paginateAggregate(Admin, pipeline, { page, limit });
+
+    res.status(200).json({
+      message: 'Admin gotten successfully',
+      ...result,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Something went wrong. Please try again later' });
+  }
+}
+
+async getAdminById(req: Request, res: Response) {
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ message: 'Invalid user ID' });
+  }
+
+  try {
+    const pipeline: any[] = [
+      {
+        $match: { _id: new mongoose.Types.ObjectId(id) }
+      },
+      {
+        $project: {
+          _id: 1,
+          firstName: 1,
+          lastName: 1,
+          username: 1,
+          status: 1,
+          lastLogin: 1,
+          locked: 1,
+          createdAt: 1,
+          email: 1,
+          isVerified: 1
+        }
+      }
+    ];
+
+    const result = await Admin.aggregate(pipeline);
+
+    if (!result || result.length === 0) {
+      return res.status(404).json({ message: 'Admin not found' });
+    }
+
+    res.status(200).json({
+      message: 'Admin retrieved successfully',
+      admin: result[0]
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Something went wrong. Please try again later' });
+  }
+}
+
+   async lockUser(req: Request, res: Response) {
+     const { id } = req.params;
+     if (!mongoose.Types.ObjectId.isValid(id)) {
+       return res.status(400).json({ message: 'Invalid user ID' });
+     }
+     
+     try {
+       const user = await Admin.findById(id);
+       if (!user) {
+         return res.status(404).json({ message: 'User not found' });
+       }
+   
+       user.status = AdminStatus.INACTIVE;
+       user.locked = true;
+       await user.save();
+   
+       return res.status(200).json({
+         message: 'Admin locked successfully',
+         user
+       });
+   
+     } catch (error) {
+       console.error('Lock user error:', error);
+       return res.status(500).json({
+         message: 'Something went wrong. Please try again later',
+       });
+     }
+   }
+
+   async unlockUser(req: Request, res: Response) {
+     const { id } = req.params;
+     if (!mongoose.Types.ObjectId.isValid(id)) {
+       return res.status(400).json({ message: 'Invalid user ID' });
+     }
+     
+     try {
+       const user = await Admin.findById(id);
+       if (!user) {
+         return res.status(404).json({ message: 'User not found' });
+       }
+
+       user.status = AdminStatus.ACTIVE;
+       user.locked = false;
+       await user.save();
+
+       return res.status(200).json({
+         message: 'Admin unlocked successfully',
+         user
+       });
+
+     } catch (error) {
+       console.error('Unlock user error:', error);
+       return res.status(500).json({
+         message: 'Something went wrong. Please try again later',
+       });
+     }
+   }
 
 }
 

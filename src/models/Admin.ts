@@ -4,6 +4,12 @@ export enum AdminRolesEnum {
     SUPERADMIN = "Superadmin",
     ASSISTANT = "Assistant"
 }
+
+
+export enum AdminStatus {
+    ACTIVE = 'Active',
+    INACTIVE = 'Inactive',
+}
 export interface IAdmin extends Document {
     email: string;
     password: string;
@@ -23,7 +29,10 @@ export interface IAdmin extends Document {
     isDeleted?: boolean;
     appleId?: string;
     roles: string;
-    permissions: []
+    permissions: [],
+    lastLogin?: Date;
+    locked?: boolean;
+    status?: AdminStatus;
 }
 
 const AdminSchema: Schema = new Schema({
@@ -46,7 +55,11 @@ const AdminSchema: Schema = new Schema({
     appleId: { type: String },
     role: { type: String },
     assistantRole: { type: String },
-    permissions: {type: [String], }
+    permissions: {type: [String], },
+    status: { type: String, enum: Object.values(AdminStatus), default: AdminStatus.ACTIVE },
+    lastLogin: { type: Date, default: Date.now },
+    locked: { type: Boolean, default: false },
+
 },
 { timestamps: true });
 
