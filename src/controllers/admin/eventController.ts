@@ -10,6 +10,7 @@ import mongoose, { Types } from 'mongoose';
 import { paginateAggregate } from '../../services/paginationService';
 import s3Service from '../../services/s3Service';
 import { getEventAnalytics } from '../../services/analyticsService';
+import { CreateAdminActivity } from '../../services/userActivityService';
 
 class EventController {
     constructor() {
@@ -47,7 +48,12 @@ class EventController {
             event.ivsIngestEndpoint = channel && channel.ingestEndpoint ? channel.ingestEndpoint : undefined
             event.ivsIngestStreamKey = channel && streamKey ? streamKey : undefined
             await event.save();
-
+            CreateAdminActivity({
+            admin: req.admin.id as mongoose.Types.ObjectId,
+            eventData: `Admin published and approved event with id ${id}`,
+            component: 'event',
+            activityType: 'publishevent'
+            });
             await EmailService.sendEmail(
                 (event.createdBy as unknown as IUser).email,
                 'Event Approved and Published',
@@ -74,7 +80,12 @@ class EventController {
             event.published = false;
             event.unpublishedBy = req.admin.id
             await event.save();
-
+            CreateAdminActivity({
+            admin: req.admin.id as mongoose.Types.ObjectId,
+            eventData: `Admin unpublished event with id ${id}`,
+            component: 'event',
+            activityType: 'unpublishevent'
+            });
             res.status(200).json({ message: 'Event unpublished successfully', event });
         } catch (error) {
             console.error(error);
@@ -97,7 +108,12 @@ class EventController {
             event.rejectedBy = req.admin.id
             event.unpublishedBy = req.admin.id
             await event.save();
-
+            CreateAdminActivity({
+            admin: req.admin.id as mongoose.Types.ObjectId,
+            eventData: `Admin rejected event with id ${id}`,
+            component: 'event',
+            activityType: 'rejectevent'
+            });
             await EmailService.sendEmail(
                 (event.createdBy as unknown as IUser).email,
                 'Event Rejected',
@@ -134,6 +150,12 @@ class EventController {
                     await event.save();
                     broadcastEventStatus(id, {message: 'Event has started', status: EventStatus.LIVE});
                      await this.notifyEventStatus(event, EventStatus.LIVE);
+                     CreateAdminActivity({
+                      admin: req.admin.id as mongoose.Types.ObjectId,
+                      eventData: `Admin started streaming event with id ${id}`,
+                      component: 'event',
+                      activityType: 'startstreamevent'
+                    });
                 } else if (session === 'stream-end') {
                     const url = await getSavedBroadCastUrl(event.ivsChannelArn)
                     // if(!url) {
@@ -145,6 +167,12 @@ class EventController {
                     await event.save();
                     broadcastEventStatus(id, {message: 'Event has ended', status: EventStatus.PAST});
                     await this.notifyEventStatus(event, EventStatus.PAST);
+                    CreateAdminActivity({
+                      admin: req.admin.id as mongoose.Types.ObjectId,
+                      eventData: `Admin ended streaming event with id ${id}`,
+                      component: 'event',
+                      activityType: 'endstreamevent'
+                    });
                 }
             res.status(200).json({ message: 'Event session updated successfully', event });
         } catch (error) {
@@ -236,7 +264,12 @@ async getAllEvents(req: Request, res: Response) {
     pipeline.push({ $sort: { [sortBy]: sortOrder } });
 
     const result = await paginateAggregate(Event, pipeline, { page, limit });
-
+    CreateAdminActivity({
+     admin: req.admin.id as mongoose.Types.ObjectId,
+     eventData: `Admin got all events`,
+     component: 'event',
+     activityType: 'allevent'
+     });
     res.status(200).json({
       message: 'Events gotten successfully',
       ...result,
@@ -259,7 +292,12 @@ async getEventById(req: Request, res: Response) {
     if (!results) {
       return res.status(404).json({ message: 'Event not found' });
     }
-
+    CreateAdminActivity({
+     admin: req.admin.id as mongoose.Types.ObjectId,
+     eventData: `Admin got event with id ${id}`,
+     component: 'event',
+     activityType: 'singleevent'
+     });
     return res.status(200).json({
       message: 'Event fetched successfully',
       results
@@ -285,6 +323,12 @@ async getSingleEventMetrics(req: Request, res: Response) {
       if (result.length === 0) {
       return res.status(404).json({ message: 'Event not found' });
     }
+    CreateAdminActivity({
+     admin: req.admin.id as mongoose.Types.ObjectId,
+     eventData: `Admin got metrics for event with id ${id}`,
+     component: 'event',
+     activityType: 'eventmetrics'
+     });
     
     res.json(result[0]);  
   
@@ -351,6 +395,12 @@ async createEvent(req: Request, res: Response) {
             });
 
             await event.save();
+            CreateAdminActivity({
+            admin: req.admin.id as mongoose.Types.ObjectId,
+            eventData: `Admin created event ${name}`,
+            component: 'event',
+            activityType: 'createevent'
+            });
             res.status(201).json({ message: 'Event created successfully', event });
         } catch (error) {
             console.error(error);
@@ -429,6 +479,12 @@ async createEvent(req: Request, res: Response) {
                 if(trailerKey) {
                 await s3Service.deleteFile(trailerKey)
                 }
+                CreateAdminActivity({
+                admin: req.admin.id as mongoose.Types.ObjectId,
+                eventData: `Admin updated event with id ${id}`,
+                component: 'event',
+                activityType: 'updateevent'
+                });
                 res.status(200).json({ message: 'Event updated successfully', event });
             } catch (error) {
                 console.error(error);

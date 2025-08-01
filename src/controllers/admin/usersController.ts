@@ -9,6 +9,7 @@ import Transactions, { TransactionStatus } from '../../models/Transactions';
 import { create } from 'domain';
 import { AdminStatus } from '../../models/Event';
 import { EventStatus } from 'aws-sdk/clients/launchwizard';
+import { CreateAdminActivity } from '../../services/userActivityService';
 
 class usersController {
 
@@ -107,7 +108,12 @@ class usersController {
     pipeline.push({ $sort: { [sortBy]: sortOrder } });
 
     const result = await paginateAggregate(User, pipeline, { page, limit });
-
+    CreateAdminActivity({
+    admin: req.admin.id as mongoose.Types.ObjectId,
+    eventData: `Admin got all users`,
+    component: 'users',
+    activityType: 'allusers'
+    });
     res.status(200).json({
       message: 'Users gotten successfully',
       ...result,
@@ -161,11 +167,17 @@ async getUserById(req: Request, res: Response) {
     ];
 
     const result = await User.aggregate(pipeline);
+    
 
     if (!result || result.length === 0) {
       return res.status(404).json({ message: 'User not found' });
     }
-
+    CreateAdminActivity({
+    admin: req.admin.id as mongoose.Types.ObjectId,
+    eventData: `Admin viewed a user with id ${id}`,
+    component: 'users',
+    activityType: 'singleuser'
+    });
     res.status(200).json({
       message: 'User retrieved successfully',
       user: result[0]
@@ -282,7 +294,12 @@ async  getEventsJoinedByUser(req: Request, res: Response) {
     });
 
     const events = await paginateAggregate(Streampass, pipeline, { page, limit });
-
+    CreateAdminActivity({
+    admin: req.admin.id as mongoose.Types.ObjectId,
+    eventData: `Admin got all events a user with id ${id} has purchased `,
+    component: 'users',
+    activityType: 'userevents'
+    });
     res.status(200).json({
       message: 'Events joined by user fetched successfully',
       ...events
@@ -348,7 +365,12 @@ async  getEventsJoinedByUser(req: Request, res: Response) {
         pipeline.push({ $sort: { [sortBy]: sortOrder } });
     
         const result = await paginateAggregate(Activity, pipeline, { page, limit });
-    
+      CreateAdminActivity({
+      admin: req.admin.id as mongoose.Types.ObjectId,
+      eventData: `Admin got all activities done by user with id ${id} `,
+      component: 'users',
+      activityType: 'useractivities'
+      });
         res.status(200).json({
           message: 'User activities fetched successfully',
           ...result,
@@ -458,7 +480,12 @@ async  getEventsJoinedByUser(req: Request, res: Response) {
         pipeline.push({ $sort: { [sortBy]: sortOrder } });
     
         const result = await paginateAggregate(Transactions, pipeline, { page, limit });
-    
+        CreateAdminActivity({
+      admin: req.admin.id as mongoose.Types.ObjectId,
+      eventData: `Admin got all transactions done by user with id ${id} `,
+      component: 'users',
+      activityType: 'usertransactions'
+      })
         res.status(200).json({
           message: 'User transaction history fetched successfully',
           ...result,
@@ -485,7 +512,12 @@ async  getEventsJoinedByUser(req: Request, res: Response) {
        user.status = UserStatus.INACTIVE;
        user.locked = true;
        await user.save();
-   
+       CreateAdminActivity({
+      admin: req.admin.id as mongoose.Types.ObjectId,
+      eventData: `Admin locked user with id ${id} account `,
+      component: 'users',
+      activityType: 'lockuser'
+      })
        return res.status(200).json({
          message: 'User locked successfully',
          user
@@ -514,7 +546,12 @@ async  getEventsJoinedByUser(req: Request, res: Response) {
        user.status = UserStatus.ACTIVE;
        user.locked = false;
        await user.save();
-
+       CreateAdminActivity({
+      admin: req.admin.id as mongoose.Types.ObjectId,
+      eventData: `Admin unlocked user with id ${id} account `,
+      component: 'users',
+      activityType: 'unlockuser'
+      })
        return res.status(200).json({
          message: 'User unlocked successfully',
          user

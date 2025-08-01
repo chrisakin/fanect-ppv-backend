@@ -515,15 +515,14 @@ async googleAuth(req: Request, res: Response) {
 
     // Save user with session
     await user.save({ session });
-
-    await session.commitTransaction();
-    session.endSession();
      CreateActivity({
         user: user._id as mongoose.Types.ObjectId,
         eventData: `User sucessfully loggedin using google auth`,
         component: 'auth',
         activityType: 'login'
     });
+    await session.commitTransaction();
+    session.endSession();
     res.status(200).json({
       message: 'Google login successful',
       data: { accessToken, refreshToken, sessionToken },
@@ -594,15 +593,14 @@ async appleAuth(req: Request, res: Response) {
     user.lastLogin = new Date();
 
     await user.save({ session });
-
-    await session.commitTransaction();
-    session.endSession();
     CreateActivity({
         user: user._id as mongoose.Types.ObjectId,
         eventData: `User sucessfully loggedin using apple auth`,
         component: 'auth',
         activityType: 'login'
     });
+    await session.commitTransaction();
+    session.endSession();
     res.status(200).json({ message: 'Apple login successful', data: { accessToken, refreshToken, sessionToken } });
   } catch (error) {
     await session.abortTransaction();

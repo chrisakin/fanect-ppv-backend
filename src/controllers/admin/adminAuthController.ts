@@ -9,6 +9,8 @@ import { verifyAppleIdToken } from '../../services/appleAuthService';
 import mongoose from 'mongoose';
 import Admin, { AdminRolesEnum, AdminStatus } from '../../models/Admin';
 import { paginateAggregate } from '../../services/paginationService';
+import { CreateAdminActivity } from '../../services/userActivityService';
+import AdminActivity from '../../models/AdminActivity';
 
 const client = new OAuth2Client(process.env.GOOGLE_LOGIN_CLIENT_ID);
 
@@ -67,6 +69,12 @@ class AuthController {
             });
 
             await newUser.save();
+            CreateAdminActivity({
+            admin: newUser._id as mongoose.Types.ObjectId,
+            eventData: `New Admin registered an account with email: ${email}`,
+            component: 'auth',
+            activityType: 'registration'
+            });
 
             // Send verification email
             await EmailService.sendEmail(
@@ -107,6 +115,12 @@ class AuthController {
             admin.verificationCode = verificationCode;
             admin.verificationCodeExpires = verificationCodeExpires;
             await admin.save();
+             CreateAdminActivity({
+               admin: admin._id as mongoose.Types.ObjectId,
+               eventData: `Admin requested for resend of verification code for email: ${email}`,
+               component: 'auth',
+               activityType: 'resendotp'
+            });
     
             // Resend verification email
             await EmailService.sendEmail(
@@ -165,7 +179,12 @@ class AuthController {
     user.status = AdminStatus.ACTIVE;
 
     await user.save({ session });
-
+     CreateAdminActivity({
+      admin: user._id as mongoose.Types.ObjectId,  
+      eventData: `Admin sucessfully verified email (${email})`,
+      component: 'auth',
+      activityType: 'verifyemail'
+    });
     await session.commitTransaction();
     session.endSession();
 
@@ -218,7 +237,12 @@ class AuthController {
             user.verificationCode = verificationCode;
             user.verificationCodeExpires = verificationCodeExpires;
             await user.save();
-    
+              CreateAdminActivity({
+                 admin: user._id as mongoose.Types.ObjectId,   
+                 eventData: `Admin sucessfully loggedin but is not verified with email: ${email}`,
+                 component: 'auth',
+                 activityType: 'login'
+            });
             // Resend verification email
             await EmailService.sendEmail(
                 email,
@@ -252,6 +276,12 @@ class AuthController {
             }
 
             const newAccessToken = this.generateAccessToken((user._id as string).toString(), user.email, user.firstName);
+            CreateAdminActivity({
+            admin: user._id as mongoose.Types.ObjectId,
+            eventData: `Refresh token granted to admin`,
+            component: 'auth',
+            activityType: 'refreshtoken'
+            });
             res.json({ accessToken: newAccessToken });
         } catch (error) {
             res.status(403).json({ message: 'Invalid or expired refresh token' });
@@ -296,6 +326,12 @@ class AuthController {
         if(emailNotifLiveStreamEnds) user.emailNotifLiveStreamEnds = emailNotifLiveStreamEnds;
 
         await user.save();
+        CreateAdminActivity({
+          admin: user._id as mongoose.Types.ObjectId,
+          eventData: `Admin updated profile information`,
+          component: 'auth',
+          activityType: 'profile'
+        });
 
         res.status(200).json({ message: 'Profile updated successfully', user });
     } catch (error) {
@@ -340,6 +376,12 @@ class AuthController {
                 { resetUrl , year: new Date().getFullYear()}
             );
             }
+            CreateAdminActivity({
+            admin: user._id as mongoose.Types.ObjectId,
+            eventData: `Admin requested password reset for email: ${email}`,
+            component: 'auth',
+            activityType: 'passwordreset'
+            });
             res.status(200).json({ message: 'Password reset email sent' });
         } catch (error) {
             res.status(500).json({ message: 'Something went wrong. Please try again later' });
@@ -374,6 +416,12 @@ class AuthController {
                 role
             });
             await newUser.save();
+            CreateAdminActivity({
+            admin: req.admin.id as mongoose.Types.ObjectId,
+            eventData: `Admin created an admin with these details: ${firstName}, ${lastName}, ${email}`,
+            component: 'admin',
+            activityType: 'passwordreset'
+            });
             const resetUrl = `${process.env.ADMIN_FRONTEND_URL}/reset/${resetToken}`;
             await EmailService.sendEmail(
                 email,
@@ -412,7 +460,12 @@ class AuthController {
             user.lastLogin = new Date();
             user.status = AdminStatus.ACTIVE;
             await user.save();
-
+            CreateAdminActivity({
+            admin: user._id as mongoose.Types.ObjectId,
+            eventData: `Admin changed their password: ${user.email}`,
+            component: 'auth',
+            activityType: 'passwordreset'
+            });
             res.status(200).json({ message: 'Password has been reset' });
         } catch (error) {
             console.log(error)
@@ -481,7 +534,12 @@ async googleAuth(req: Request, res: Response) {
 
     // Save user with session
     await user.save({ session });
-
+    CreateAdminActivity({
+    admin: user._id as mongoose.Types.ObjectId,
+    eventData: `Admin sucessfully loggedin using google auth`,
+    component: 'auth',
+    activityType: 'login'
+    });
     await session.commitTransaction();
     session.endSession();
 
@@ -548,7 +606,12 @@ async appleAuth(req: Request, res: Response) {
     user.appleId = appleId;
 
     await user.save({ session });
-
+        CreateAdminActivity({
+        admin: user._id as mongoose.Types.ObjectId,
+        eventData: `Admin sucessfully loggedin using apple auth`,
+        component: 'auth',
+        activityType: 'login'
+    });
     await session.commitTransaction();
     session.endSession();
 
@@ -575,7 +638,12 @@ async appleAuth(req: Request, res: Response) {
 
             user.refreshToken = undefined;
             await user.save();
-
+            CreateAdminActivity({
+            admin: user._id as mongoose.Types.ObjectId,
+            eventData: `Admin sucessfully logged out`,
+            component: 'auth',
+            activityType: 'logout'
+            });
             res.status(200).json({ message: 'Admin logged out successfully' });
         } catch (error) {
             res.status(500).json({ message: 'Something went wrong. Please try again later' });
@@ -603,6 +671,12 @@ async appleAuth(req: Request, res: Response) {
             const hashedPassword = await bcrypt.hash(newPassword, 10);
             user.password = hashedPassword;
             await user.save();
+            CreateAdminActivity({
+             admin: user._id as mongoose.Types.ObjectId,
+             eventData: `Admin changed their password sucessfully`,
+             component: 'auth',
+             activityType: 'changepassword'
+             });
 
             res.status(200).json({ message: 'Password changed successfully' });
         } catch (error) {
@@ -623,7 +697,12 @@ async appleAuth(req: Request, res: Response) {
 
         user.isDeleted = true;
         await user.save();
-
+        CreateAdminActivity({
+        admin: user._id as mongoose.Types.ObjectId,
+        eventData: `Admin deleted their account`,
+        component: 'auth',
+        activityType: 'deleteaccount'
+        });
         res.status(200).json({ message: 'Account deleted successfully (soft delete)' });
     } catch (error) {
         res.status(500).json({ message: 'Something went wrong. Please try again later' });
@@ -707,7 +786,12 @@ async appleAuth(req: Request, res: Response) {
     pipeline.push({ $sort: { [sortBy]: sortOrder } });
 
     const result = await paginateAggregate(Admin, pipeline, { page, limit });
-
+     CreateAdminActivity({
+    admin: req.admin.id as mongoose.Types.ObjectId,
+    eventData: `Admin accessed all admin accounts`,
+    component: 'admin',
+    activityType: 'getalladmin'
+    });
     res.status(200).json({
       message: 'Admin gotten successfully',
       ...result,
@@ -747,7 +831,12 @@ async getAdminById(req: Request, res: Response) {
     ];
 
     const result = await Admin.aggregate(pipeline);
-
+     CreateAdminActivity({
+    admin: req.admin.id as mongoose.Types.ObjectId,
+    eventData: `Admin accessed a single admin account with id ${id}`,
+    component: 'admin',
+    activityType: 'getsingleadmin'
+    });
     if (!result || result.length === 0) {
       return res.status(404).json({ message: 'Admin not found' });
     }
@@ -777,7 +866,12 @@ async getAdminById(req: Request, res: Response) {
        user.status = AdminStatus.INACTIVE;
        user.locked = true;
        await user.save();
-   
+       CreateAdminActivity({
+        admin: req.admin.id as mongoose.Types.ObjectId,
+        eventData: `Admin locked admin with id ${id} account`,
+        component: 'admin',
+        activityType: 'lockaccount'
+        });
        return res.status(200).json({
          message: 'Admin locked successfully',
          user
@@ -806,7 +900,12 @@ async getAdminById(req: Request, res: Response) {
        user.status = AdminStatus.ACTIVE;
        user.locked = false;
        await user.save();
-
+       CreateAdminActivity({
+        admin: req.admin.id as mongoose.Types.ObjectId,
+        eventData: `Admin unlocked admin with id ${id} account`,
+        component: 'admin',
+        activityType: 'unlockaccount'
+        });
        return res.status(200).json({
          message: 'Admin unlocked successfully',
          user
@@ -819,6 +918,77 @@ async getAdminById(req: Request, res: Response) {
        });
      }
    }
+
+   async getAdminActivities(req: Request, res: Response) {
+        const { id } = req.params;
+         if (!mongoose.Types.ObjectId.isValid(id)) {
+           return res.status(400).json({ message: 'Invalid user ID' });
+         }
+         try {
+           const page = Number(req.query.page) || 1;
+           const limit = Number(req.query.limit) || 10;
+           const search = req.query.search as string | undefined;
+           const filter: any = {};
+           const startDate = req.query.startDate ? new Date(req.query.startDate as string) : null;
+           const endDate = req.query.endDate ? new Date(req.query.endDate as string) : null;
+   
+           if (req.query.component) {
+             filter.component = req.query.component;
+           }
+   
+           const dateMatch: any = {};
+       if (startDate) dateMatch.$gte = startDate;
+       if (endDate) dateMatch.$lte = endDate;
+   
+       
+           const pipeline: any[] = [
+             { $match: { user: new mongoose.Types.ObjectId(id), ...filter} },
+             { $lookup: { from: 'admins', localField: 'admin', foreignField: '_id', as: 'userDetails' } },
+             { $unwind: '$userDetails' },
+             { $project: { _id: 1, userName: '$userDetails.firstName', eventData: 1, component: 1, createdAt: 1, activityType: 1 } }
+           ];
+       
+           if (search?.trim()) {
+             pipeline.push({
+               $match: {
+                 $or: [
+                   { eventData: { $regex: search, $options: 'i' } },
+                 ],
+               },
+             });
+           }
+   
+            if (startDate || endDate) {
+         pipeline.push({
+           $match: {
+             createdAt: dateMatch
+           }
+         });
+       }
+       
+           // Sorting
+           const sortBy = (req.query.sortBy as string) || 'createdAt';
+           const sortOrderStr = (req.query.sortOrder as string) || 'desc';
+           const sortOrder = sortOrderStr.toLowerCase() === 'desc' ? 1 : -1;
+       
+           pipeline.push({ $sort: { [sortBy]: sortOrder } });
+       
+           const result = await paginateAggregate(AdminActivity, pipeline, { page, limit });
+         CreateAdminActivity({
+         admin: req.admin.id as mongoose.Types.ObjectId,
+         eventData: `Admin got all activities done by admin with id ${id} `,
+         component: 'admin',
+         activityType: 'adminactivities'
+         });
+           res.status(200).json({
+             message: 'Admin activities fetched successfully',
+             ...result,
+           });
+         } catch (error) {
+           console.error('Error fetching user activities:', error);
+           res.status(500).json({ message: 'Something went wrong. Please try again later' });
+         }
+       }
 
 }
 
