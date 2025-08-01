@@ -226,8 +226,8 @@ async  getEventsJoinedByUser(req: Request, res: Response) {
         $unwind: '$event'
       },
       {
-        $replaceWith: '$event'
-      }
+    $replaceRoot: { newRoot: '$event' }
+  }
     );
 
     // Filter by event fields
