@@ -38,4 +38,5 @@ router.get('/get-all-admin', verifyToken, authController.getAllAdmin)
 router.get('/single-admin/:id', verifyToken, authController.getAdminById)
 router.put('/unlock-user/:id', verifyToken, authController.unlockUser)
 router.put('/lock-user/:id', verifyToken, authController.lockUser)
+router.get('/admin-activites/:id', verifyToken, authController.getAdminActivities)
 export default router;

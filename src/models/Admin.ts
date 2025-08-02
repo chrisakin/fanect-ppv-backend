@@ -28,7 +28,7 @@ export interface IAdmin extends Document {
     deviceTokens: string[];
     isDeleted?: boolean;
     appleId?: string;
-    roles: string;
+    role: AdminRolesEnum;
     permissions: [],
     lastLogin?: Date;
     locked?: boolean;
