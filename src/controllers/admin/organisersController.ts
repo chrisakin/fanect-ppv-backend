@@ -8,77 +8,194 @@ import Event, { AdminStatus, EventStatus } from "../../models/Event";
 
 class organisersController {
 
- async getAllOrganisers(req: Request, res: Response) {
+//  async getAllOrganisers(req: Request, res: Response) {
+//   try {
+//     const page = Number(req.query.page) || 1;
+//     const limit = Number(req.query.limit) || 10;
+//     const search = req.query.search as string | undefined;
+//     const filter: any = {};
+//      const startDate = req.query.startDate ? new Date(req.query.startDate as string) : null;
+//     const endDate = req.query.endDate ? new Date(req.query.endDate as string) : null;
+
+//     if (req.query.status) {
+//       filter.status = req.query.status as UserStatus;
+//     }
+//     if(req.query.verified) {
+//       filter.isVerified = req.query.verified == 'verified' ? true : false;
+//     }
+//     if(req.query.locked) {
+//       filter.locked = req.query.locked == 'locked' ? true : false;
+//     }
+
+//     const pipeline: any[] = [];
+
+//     // Base filters
+//     pipeline.push({ $match: filter });
+
+//         if (startDate || endDate) {
+//       const dateMatch: any = {};
+//       if (startDate) {
+//         dateMatch.$gte = startDate;
+//       }
+//       if (endDate) {
+//         dateMatch.$lte = endDate;
+//       }
+
+//       pipeline.push({
+//         $match: {
+//           createdAt: dateMatch,
+//         },
+//       });
+//     }
+
+//     // Search filter
+//     if (search?.trim()) {
+//       pipeline.push({
+//         $match: {
+//           $or: [
+//             { firstName: { $regex: search, $options: 'i' } },
+//             { lastName: { $regex: search, $options: 'i' } },
+//             { email: { $regex: search, $options: 'i' } },
+//           ],
+//         },
+//       });
+//     }
+
+//     // Final projection
+//     pipeline.push({
+//       $project: {
+//         _id: 1,
+//         firstName: 1,
+//         lastName: 1,
+//         username: 1,
+//         status: 1,
+//         lastLogin: 1,
+//         locked: 1,
+//         createdAt: 1,
+//         email: 1,
+//         isVerified:1,
+//       },
+//     });
+
+//     // Sorting
+//     const sortBy = (req.query.sortBy as string) || 'createdAt';
+//     const sortOrderStr = (req.query.sortOrder as string) || 'asc';
+//     const sortOrder = sortOrderStr.toLowerCase() === 'desc' ? -1 : 1;
+
+//     pipeline.push({ $sort: { [sortBy]: sortOrder } });
+
+//     const result = await paginateAggregate(User, pipeline, { page, limit });
+//     CreateAdminActivity({
+//     admin: req.admin.id as mongoose.Types.ObjectId,
+//     eventData: `Admin got all organisers`,
+//     component: 'organisers',
+//     activityType: 'allusers'
+//     });
+//     res.status(200).json({
+//       message: 'Organisers gotten successfully',
+//       ...result,
+//     });
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).json({ message: 'Something went wrong. Please try again later' });
+//   }
+// }
+
+async  getAllOrganisers(req: Request, res: Response) {
   try {
     const page = Number(req.query.page) || 1;
     const limit = Number(req.query.limit) || 10;
     const search = req.query.search as string | undefined;
-    const filter: any = {};
-     const startDate = req.query.startDate ? new Date(req.query.startDate as string) : null;
+
+    const userFilter: any = {};
+    const startDate = req.query.startDate ? new Date(req.query.startDate as string) : null;
     const endDate = req.query.endDate ? new Date(req.query.endDate as string) : null;
 
     if (req.query.status) {
-      filter.status = req.query.status as UserStatus;
+      userFilter.status = req.query.status;
     }
-    if(req.query.verified) {
-      filter.isVerified = req.query.verified == 'verified' ? true : false;
+    if (req.query.verified) {
+      userFilter.isVerified = req.query.verified === 'verified';
     }
-    if(req.query.locked) {
-      filter.locked = req.query.locked == 'locked' ? true : false;
+    if (req.query.locked) {
+      userFilter.locked = req.query.locked === 'locked';
     }
 
     const pipeline: any[] = [];
 
-    // Base filters
-    pipeline.push({ $match: filter });
+    // Step 1: Match events created by users only
+    pipeline.push({
+      $match: {
+        createdByModel: 'User'
+      }
+    });
 
-        if (startDate || endDate) {
+    // Step 2: Optional createdAt filter on events
+    if (startDate || endDate) {
       const dateMatch: any = {};
-      if (startDate) {
-        dateMatch.$gte = startDate;
-      }
-      if (endDate) {
-        dateMatch.$lte = endDate;
-      }
+      if (startDate) dateMatch.$gte = startDate;
+      if (endDate) dateMatch.$lte = endDate;
 
       pipeline.push({
         $match: {
-          createdAt: dateMatch,
-        },
+          createdAt: dateMatch
+        }
       });
     }
 
-    // Search filter
+    // Step 3: Group by user ID
+    pipeline.push({
+      $group: {
+        _id: '$createdBy'
+      }
+    });
+
+    // Step 4: Lookup user info
+    pipeline.push({
+      $lookup: {
+        from: 'users',
+        localField: '_id',
+        foreignField: '_id',
+        as: 'user'
+      }
+    });
+
+    // Step 5: Flatten user array
+    pipeline.push({
+      $unwind: '$user'
+    });
+
+    // Step 6: Apply filters to user fields
+    if (Object.keys(userFilter).length > 0) {
+      const prefixedFilter: any = {};
+      for (const key in userFilter) {
+        prefixedFilter[`user.${key}`] = userFilter[key];
+      }
+
+      pipeline.push({
+        $match: prefixedFilter
+      });
+    }
+
+    // Step 7: Search by name/email
     if (search?.trim()) {
       pipeline.push({
         $match: {
           $or: [
-            { firstName: { $regex: search, $options: 'i' } },
-            { lastName: { $regex: search, $options: 'i' } },
-            { email: { $regex: search, $options: 'i' } },
-          ],
-        },
+            { 'user.firstName': { $regex: search, $options: 'i' } },
+            { 'user.lastName': { $regex: search, $options: 'i' } },
+            { 'user.email': { $regex: search, $options: 'i' } }
+          ]
+        }
       });
     }
 
-    // Add lookup to Streampass for events joined
+    // Step 8: Replace root with user
     pipeline.push({
-      $lookup: {
-        from: 'streampasses',
-        localField: '_id',
-        foreignField: 'user',
-        as: 'joinedEvents',
-      },
+      $replaceWith: '$user'
     });
 
-    // Add computed fields
-    pipeline.push({
-      $addFields: {
-        eventsJoinedCount: { $size: '$joinedEvents' },
-      },
-    });
-
-    // Final projection
+    // Step 9: Project only necessary fields
     pipeline.push({
       $project: {
         _id: 1,
@@ -88,36 +205,40 @@ class organisersController {
         status: 1,
         lastLogin: 1,
         locked: 1,
-        eventsJoinedCount: 1,
         createdAt: 1,
         email: 1,
-        isVerified:1,
-      },
+        isVerified: 1
+      }
     });
 
-    // Sorting
+    // Step 10: Sort
     const sortBy = (req.query.sortBy as string) || 'createdAt';
-    const sortOrderStr = (req.query.sortOrder as string) || 'asc';
-    const sortOrder = sortOrderStr.toLowerCase() === 'desc' ? -1 : 1;
+    const sortOrder = (req.query.sortOrder as string || 'desc').toLowerCase() === 'desc' ? -1 : 1;
 
-    pipeline.push({ $sort: { [sortBy]: sortOrder } });
+    pipeline.push({
+      $sort: {
+        [sortBy]: sortOrder
+      }
+    });
 
-    const result = await paginateAggregate(User, pipeline, { page, limit });
+    // Step 11: Paginate
+    const result = await paginateAggregate(Event, pipeline, { page, limit });
     CreateAdminActivity({
     admin: req.admin.id as mongoose.Types.ObjectId,
-    eventData: `Admin got all users`,
-    component: 'users',
+    eventData: `Admin got all organisers`,
+    component: 'organisers',
     activityType: 'allusers'
     });
     res.status(200).json({
-      message: 'Users gotten successfully',
-      ...result,
+      message: 'Organisers fetched successfully',
+      ...result
     });
   } catch (error) {
-    console.error(error);
+    console.error('Error fetching users with events:', error);
     res.status(500).json({ message: 'Something went wrong. Please try again later' });
   }
 }
+
 
 async  getEventsCreatedByOrganiser(req: Request, res: Response) {
   const { id } = req.params;
