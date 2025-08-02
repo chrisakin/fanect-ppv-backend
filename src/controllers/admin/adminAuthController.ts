@@ -942,7 +942,7 @@ async getAdminById(req: Request, res: Response) {
    
        
            const pipeline: any[] = [
-             { $match: { user: new mongoose.Types.ObjectId(id), ...filter} },
+             { $match: { admin: new mongoose.Types.ObjectId(id), ...filter} },
              { $lookup: { from: 'admins', localField: 'admin', foreignField: '_id', as: 'userDetails' } },
              { $unwind: '$userDetails' },
              { $project: { _id: 1, userName: '$userDetails.firstName', eventData: 1, component: 1, createdAt: 1, activityType: 1 } }
