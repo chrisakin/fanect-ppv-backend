@@ -1,12 +1,10 @@
 import { Request, Response } from 'express';
 import User, { UserStatus } from '../../models/User';
-import { IUser } from '../../models/User';
 import mongoose from 'mongoose';
 import { paginateAggregate } from '../../services/paginationService';
 import Streampass from '../../models/Streampass';
 import Activity from '../../models/Activity';
 import Transactions, { TransactionStatus } from '../../models/Transactions';
-import { create } from 'domain';
 import { AdminStatus } from '../../models/Event';
 import { EventStatus } from 'aws-sdk/clients/launchwizard';
 import { CreateAdminActivity } from '../../services/userActivityService';
