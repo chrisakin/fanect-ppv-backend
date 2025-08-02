@@ -416,13 +416,12 @@ class AuthController {
                 role
             });
             await newUser.save();
-            console.log(req.admin);
-            // CreateAdminActivity({
-            // admin: req.admin.id as mongoose.Types.ObjectId,
-            // eventData: `Admin created an admin with these details: ${firstName}, ${lastName}, ${email}`,
-            // component: 'admin',
-            // activityType: 'passwordreset'
-            // });
+            CreateAdminActivity({
+            admin: req.admin.id as mongoose.Types.ObjectId,
+            eventData: `Admin created an admin with these details: ${firstName}, ${lastName}, ${email}`,
+            component: 'admin',
+            activityType: 'passwordreset'
+            });
             const resetUrl = `${process.env.ADMIN_FRONTEND_URL}/reset/${resetToken}`;
             await EmailService.sendEmail(
                 email,
