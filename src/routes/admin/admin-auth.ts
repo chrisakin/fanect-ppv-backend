@@ -33,7 +33,7 @@ router.post('/forgot-password', authController.forgotPassword);
 router.post('/reset/:token', authController.resetPassword);
 // In your auth routes file
 router.delete('/delete-account', verifyToken, authController.deleteAccount);
-router.post('/create-admin', authController.createAdmin);
+router.post('/create-admin',verifyToken, authController.createAdmin);
 router.get('/get-all-admin', verifyToken, authController.getAllAdmin)
 router.get('/single-admin/:id', verifyToken, authController.getAdminById)
 router.put('/unlock-user/:id', verifyToken, authController.unlockUser)
