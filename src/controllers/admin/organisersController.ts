@@ -101,7 +101,7 @@ class organisersController {
 //   }
 // }
 
-async  getAllOrganisers(req: Request, res: Response) {
+async getAllOrganisers(req: Request, res: Response) {
   try {
     const page = Number(req.query.page) || 1;
     const limit = Number(req.query.limit) || 10;
@@ -123,14 +123,14 @@ async  getAllOrganisers(req: Request, res: Response) {
 
     const pipeline: any[] = [];
 
-    // Step 1: Match events created by users only
+    // Match events created by users
     pipeline.push({
       $match: {
         createdByModel: 'User'
       }
     });
 
-    // Step 2: Optional createdAt filter on events
+    // Filter events by date
     if (startDate || endDate) {
       const dateMatch: any = {};
       if (startDate) dateMatch.$gte = startDate;
@@ -143,14 +143,15 @@ async  getAllOrganisers(req: Request, res: Response) {
       });
     }
 
-    // Step 3: Group by user ID
+    // Group by user and count events
     pipeline.push({
       $group: {
-        _id: '$createdBy'
+        _id: '$createdBy',
+        eventCreated: { $sum: 1 }
       }
     });
 
-    // Step 4: Lookup user info
+    // Lookup user info
     pipeline.push({
       $lookup: {
         from: 'users',
@@ -160,24 +161,19 @@ async  getAllOrganisers(req: Request, res: Response) {
       }
     });
 
-    // Step 5: Flatten user array
-    pipeline.push({
-      $unwind: '$user'
-    });
+    pipeline.push({ $unwind: '$user' });
 
-    // Step 6: Apply filters to user fields
+    // Apply user filters
     if (Object.keys(userFilter).length > 0) {
       const prefixedFilter: any = {};
       for (const key in userFilter) {
         prefixedFilter[`user.${key}`] = userFilter[key];
       }
 
-      pipeline.push({
-        $match: prefixedFilter
-      });
+      pipeline.push({ $match: prefixedFilter });
     }
 
-    // Step 7: Search by name/email
+    // Search
     if (search?.trim()) {
       pipeline.push({
         $match: {
@@ -190,12 +186,19 @@ async  getAllOrganisers(req: Request, res: Response) {
       });
     }
 
-    // Step 8: Replace root with user
+    // Add event count to user
+    pipeline.push({
+      $addFields: {
+        'user.eventCreated': '$eventCreated'
+      }
+    });
+
+    // Replace root with user doc
     pipeline.push({
       $replaceWith: '$user'
     });
 
-    // Step 9: Project only necessary fields
+    // Project fields
     pipeline.push({
       $project: {
         _id: 1,
@@ -207,11 +210,12 @@ async  getAllOrganisers(req: Request, res: Response) {
         locked: 1,
         createdAt: 1,
         email: 1,
-        isVerified: 1
+        isVerified: 1,
+        eventCreated: 1
       }
     });
 
-    // Step 10: Sort
+    // Sorting
     const sortBy = (req.query.sortBy as string) || 'createdAt';
     const sortOrder = (req.query.sortOrder as string || 'desc').toLowerCase() === 'desc' ? -1 : 1;
 
@@ -221,14 +225,17 @@ async  getAllOrganisers(req: Request, res: Response) {
       }
     });
 
-    // Step 11: Paginate
+    // Pagination
     const result = await paginateAggregate(Event, pipeline, { page, limit });
+
+    // Log activity
     CreateAdminActivity({
-    admin: req.admin.id as mongoose.Types.ObjectId,
-    eventData: `Admin got all organisers`,
-    component: 'organisers',
-    activityType: 'allusers'
+      admin: req.admin.id as mongoose.Types.ObjectId,
+      eventData: `Admin got all organisers`,
+      component: 'organisers',
+      activityType: 'allusers'
     });
+
     res.status(200).json({
       message: 'Organisers fetched successfully',
       ...result
@@ -238,6 +245,7 @@ async  getAllOrganisers(req: Request, res: Response) {
     res.status(500).json({ message: 'Something went wrong. Please try again later' });
   }
 }
+
 
 
 async  getEventsCreatedByOrganiser(req: Request, res: Response) {
