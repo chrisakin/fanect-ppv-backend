@@ -149,6 +149,19 @@ async getUserById(req: Request, res: Response) {
           eventsJoinedCount: { $size: '$joinedEvents' }
         }
       },
+       {
+        $lookup: {
+          from: 'events',
+          localField: '_id',
+          foreignField: 'createdBy',
+          as: 'createdEvents'
+        }
+      },
+      {
+        $addFields: {
+          eventCreated: { $size: '$createdEvents' }
+        }
+      },
       {
         $project: {
           _id: 1,
@@ -161,7 +174,8 @@ async getUserById(req: Request, res: Response) {
           eventsJoinedCount: 1,
           createdAt: 1,
           email: 1,
-          isVerified: 1
+          isVerified: 1,
+          eventCreated: 1
         }
       }
     ];
