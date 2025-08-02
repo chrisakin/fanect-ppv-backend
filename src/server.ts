@@ -6,6 +6,7 @@ import authRoutes from './routes/auth';
 import adminAuthRoutes from './routes/admin/admin-auth'
 import adminEventRoutes from './routes/admin/event'
 import adminUsersRoutes from './routes/admin/users';
+import adminOrganisersRoutes from './routes/admin/organisers'
 import eventRoutes from './routes/event';
 import streampassRoutes from './routes/streampass'
 import fcmRoutes from './routes/notification';
@@ -38,6 +39,7 @@ app.use('/api/v1/feedback', getUsersCountry, feedbackRoutes)
 app.use('/api/v1/admin/auth', adminAuthRoutes);
 app.use('/api/v1/admin/events', adminEventRoutes);
 app.use('/api/v1/admin/users', adminUsersRoutes);
+app.use('/api/v1/admin/organisers', adminOrganisersRoutes);
 
 const PORT = process.env.PORT || 3000;
 
