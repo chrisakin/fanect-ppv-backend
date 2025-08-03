@@ -146,15 +146,16 @@ getTransactionStats = async (req: Request, res: Response) => {
     const currencyFilter = req.query.currency as string | undefined;
 
     const match: any = {};
-
+    let currencies: string[] = [];
     if (currencyFilter) {
-      const currencies = currencyFilter
+       currencies = currencyFilter
         .split(',')
         .map((c) => c.trim());
       match.currency = { $in: currencies };
     }
+    const isSingleCurrency = currencies.length === 1;
 
-    const [stats] = await Transactions.aggregate([
+    const [rawStats] = await Transactions.aggregate([
       { $match: match },
       {
         $group: {
@@ -199,10 +200,16 @@ getTransactionStats = async (req: Request, res: Response) => {
           nonGiftTransactions: 1,
           flutterwaveCount: 1,
           stripeCount: 1,
-          currency: req.query.currency,
         },
       },
     ]);
+      const stats = rawStats || {};
+    if (!isSingleCurrency) {
+      delete stats.totalAmount;
+    }
+    if (isSingleCurrency) {
+      stats.currency = currencies[0];
+    }
 
     return res.status(200).json({ success: true, stats: stats || {} });
   } catch (error) {
