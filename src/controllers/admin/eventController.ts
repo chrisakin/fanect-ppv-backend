@@ -118,6 +118,7 @@ class EventController {
             component: 'event',
             activityType: 'eventlocation'
             });
+           res.status(200).json({ message: 'Event location deleted successfully' });
         } catch (error) {
             console.error(error);
             res.status(500).json({ message: 'Something went wrong. Please try again later' });
