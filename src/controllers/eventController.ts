@@ -242,12 +242,14 @@ async getUpcomingEvents(req: Request, res: Response) {
     );
 
     const result = await paginateAggregate(Event, pipeline, { page, limit });
-    CreateActivity({
+   if(userId) {
+     CreateActivity({
     user: userId as unknown as mongoose.Types.ObjectId,
     eventData: `User requested upcoming events`,
     component: 'event',
     activityType: 'upcomingevent'
     });
+   }
     res.status(200).json({
       message: 'Events gotten successfully',
       ...result,
@@ -626,12 +628,14 @@ async getUpcomingEvents(req: Request, res: Response) {
     ) || event.prices?.find((p: any) => p.currency === 'USD' || event.prices?.find((p: any) => p.currency === 'NGN' || event.prices[0]));
 
     delete event.prices;
-    CreateActivity({
+   if(userId) {
+     CreateActivity({
     user: userId as unknown as mongoose.Types.ObjectId,
     eventData: `User requested single event ${event.name}`,
     component: 'event',
     activityType: 'singleevent'
     });
+   }
     return res.status(200).json({
       message: 'Event fetched successfully',
       event: {
