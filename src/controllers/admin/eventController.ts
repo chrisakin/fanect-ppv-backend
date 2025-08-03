@@ -92,9 +92,6 @@ class EventController {
             if (!event || event.isDeleted) {
                 return res.status(404).json({ message: 'Event not found' });
             }
-            if(event.published) {
-                return res.status(404).json({ message: 'Event is already published' });
-            }
             const locations = req.body.locations
             await EventLocation.insertMany(locations)
             CreateAdminActivity({
