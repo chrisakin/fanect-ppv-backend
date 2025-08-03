@@ -24,13 +24,14 @@ class transactionsController {
             if(req.query.paymentMethod) {
               filter.paymentMethod = req.query.paymentMethod as 'flutterwave' | 'stripe';
             } 
-           if (req.query.currency) {
-            const currencies = Array.isArray(req.query.currency)
-             ? req.query.currency
-             : (req.query.currency as string).split(',').map(c => c.trim().toLowerCase());
+            const currencyFilter = req.query.currency as string | undefined;
 
-            filter.currency = { $in: currencies };
-            }
+    if (currencyFilter) {
+      const currencies = currencyFilter
+        .split(',')
+        .map((c) => c.trim());
+      filter.currency = { $in: currencies };
+    }
     
           const dateMatch: any = {};
           if (startDate) dateMatch.$gte = startDate;
