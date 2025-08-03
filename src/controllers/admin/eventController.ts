@@ -73,7 +73,7 @@ class EventController {
     async getEventLocations(req: Request, res: Response) {
       const { id } = req.params;
       try {
-        const event = await Event.findById(id).lean();
+        const event = await Event.findById(id).select('location').lean();
          if (!event || event.isDeleted) {
                 return res.status(404).json({ message: 'Event not found' });
             }
