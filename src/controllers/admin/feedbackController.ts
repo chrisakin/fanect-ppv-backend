@@ -107,7 +107,7 @@ class feedbackController {
             const result = await paginateAggregate(Feedback, pipeline, { page, limit });
             CreateAdminActivity({
           admin: req.admin.id as mongoose.Types.ObjectId,
-          eventData: `Admin got all feedback in the system`,
+          eventData: id ? `Admin got feedback for event with id ${id}` : `Admin got all feedback in the system`,
           component: 'users',
           activityType: 'userfeedback'
           })
