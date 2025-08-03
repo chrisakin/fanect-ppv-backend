@@ -92,7 +92,7 @@ class EventController {
             if (!event || event.isDeleted) {
                 return res.status(404).json({ message: 'Event not found' });
             }
-            const locations = req.body.locations
+            const locations = req.body
             await EventLocation.insertMany(locations)
             CreateAdminActivity({
             admin: req.admin.id as mongoose.Types.ObjectId,
