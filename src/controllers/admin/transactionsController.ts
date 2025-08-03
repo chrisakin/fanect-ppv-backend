@@ -199,6 +199,7 @@ getTransactionStats = async (req: Request, res: Response) => {
           nonGiftTransactions: 1,
           flutterwaveCount: 1,
           stripeCount: 1,
+          currency: req.query.currency,
         },
       },
     ]);
