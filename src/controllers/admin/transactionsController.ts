@@ -6,10 +6,6 @@ import { CreateAdminActivity } from '../../services/userActivityService';
 
 class transactionsController {
       async getAllTransactions(req: Request, res: Response) {
-         const { id } = req.params; 
-          if (!mongoose.Types.ObjectId.isValid(id)) {
-            return res.status(400).json({ message: 'Invalid user ID' });
-          }
           try {
             const page = Number(req.query.page) || 1;
             const limit = Number(req.query.limit) || 10;
