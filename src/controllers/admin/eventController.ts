@@ -98,7 +98,7 @@ class EventController {
             admin: req.admin.id as mongoose.Types.ObjectId,
             eventData: `Admin updated event locations for event with id ${id}`,
             component: 'event',
-            activityType: 'publishevent'
+            activityType: 'eventlocation'
             });
 
             res.status(200).json({ message: 'Event updated successfully', event });
@@ -107,6 +107,22 @@ class EventController {
             res.status(500).json({ message: 'Something went wrong. Please try again later' });
         }
     }
+
+      async removeEventLocations(req: Request, res: Response) {
+        const { id } = req.params;
+        try {
+         await EventLocation.findByIdAndDelete(id);
+          CreateAdminActivity({
+            admin: req.admin.id as mongoose.Types.ObjectId,
+            eventData: `Admin removed event locations for location with id ${id}`,
+            component: 'event',
+            activityType: 'eventlocation'
+            });
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ message: 'Something went wrong. Please try again later' });
+        }
+      }
 
     async unpublishEvent(req: Request, res: Response) {
         const { id } = req.params;
