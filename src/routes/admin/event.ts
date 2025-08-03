@@ -7,7 +7,7 @@ const router = Router();
 
 router.post('/create',  uploadFields, adminAuthMiddleware, EventController.createEvent);
 router.put('/update/:id',  uploadFields, adminAuthMiddleware, EventController.updateEvent);
-router.put('/update-event-locations/:id', adminAuthMiddleware, EventController.updateEventLocations)
+router.post('/update-event-locations/:id', adminAuthMiddleware, EventController.updateEventLocations)
 router.get('/event-locations/:id', adminAuthMiddleware, EventController.getEventLocations)
 router.put('/publish/:id', adminAuthMiddleware, EventController.publishEvent);
 router.put('/unpublish/:id', adminAuthMiddleware, EventController.unpublishEvent);
