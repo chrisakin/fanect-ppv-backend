@@ -70,6 +70,21 @@ class EventController {
         }
     }
 
+    async getEventLocations(req: Request, res: Response) {
+      const { id } = req.params;
+      try {
+        const event = await Event.findById(id).lean();
+         if (!event || event.isDeleted) {
+                return res.status(404).json({ message: 'Event not found' });
+            }
+        const locations = await EventLocation.find({event: id}).lean()
+        res.status(200).json({ message: 'Event locations gotten successfully', locations });
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ message: 'Something went wrong. Please try again later' });
+        }
+    }
+
       async updateEventLocations(req: Request, res: Response) {
         const { id } = req.params;
         try {
