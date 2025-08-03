@@ -14,5 +14,6 @@ router.put('/update-event-session/:id', adminAuthMiddleware, EventController.upd
 router.get('/all-events', adminAuthMiddleware, EventController.getAllEvents);
 router.get('/single-event/:id', adminAuthMiddleware, EventController.getEventById)
 router.get('/single-event-metrics/:id', adminAuthMiddleware, EventController.getSingleEventMetrics)
+router.get('/single-event-transactions/:id', adminAuthMiddleware, EventController.getSingleEventTransactions)
 
 export default router;
