@@ -12,6 +12,7 @@ import s3Service from '../../services/s3Service';
 import { getEventAnalytics } from '../../services/analyticsService';
 import { CreateAdminActivity } from '../../services/userActivityService';
 import Transactions, { TransactionStatus } from '../../models/Transactions';
+import EventLocation from '../../models/EventLocation';
 
 class EventController {
     constructor() {
@@ -63,6 +64,32 @@ class EventController {
             );
 
             res.status(200).json({ message: 'Event published successfully', event });
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ message: 'Something went wrong. Please try again later' });
+        }
+    }
+
+      async updateEventLocations(req: Request, res: Response) {
+        const { id } = req.params;
+        try {
+            const event = await Event.findById(id);
+            if (!event || event.isDeleted) {
+                return res.status(404).json({ message: 'Event not found' });
+            }
+            if(event.published) {
+                return res.status(404).json({ message: 'Event is already published' });
+            }
+            const locations = req.body.locations
+            await EventLocation.insertMany(locations)
+            CreateAdminActivity({
+            admin: req.admin.id as mongoose.Types.ObjectId,
+            eventData: `Admin updated event locations for event with id ${id}`,
+            component: 'event',
+            activityType: 'publishevent'
+            });
+
+            res.status(200).json({ message: 'Event updated successfully', event });
         } catch (error) {
             console.error(error);
             res.status(500).json({ message: 'Something went wrong. Please try again later' });

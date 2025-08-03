@@ -108,7 +108,7 @@ class feedbackController {
             CreateAdminActivity({
           admin: req.admin.id as mongoose.Types.ObjectId,
           eventData: id ? `Admin got feedback for event with id ${id}` : `Admin got all feedback in the system`,
-          component: 'users',
+          component: 'feedback',
           activityType: 'userfeedback'
           })
             res.status(200).json({
