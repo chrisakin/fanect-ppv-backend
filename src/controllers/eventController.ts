@@ -172,6 +172,33 @@ async getUpcomingEvents(req: Request, res: Response) {
       }
     }
   },
+  {
+  $lookup: {
+    from: 'eventlocations',
+    localField: '_id',
+    foreignField: 'event',
+    as: 'locationData'
+  }
+},
+{
+  $addFields: {
+    locationMatch: {
+      $cond: [
+        { $gt: [{ $size: '$locationData' }, 0] },
+        {
+          $in: [userCountry, { $map: { input: '$locationData', as: 'loc', in: '$$loc.location' } }]
+        },
+        true // if locationData is empty, allow the event
+      ]
+    }
+  }
+},
+{
+  $match: {
+    locationMatch: true
+  }
+}
+
     ];
 
     if (search && search.trim() !== '') {
@@ -298,6 +325,33 @@ async getUpcomingEvents(req: Request, res: Response) {
       }
     }
   },
+  {
+  $lookup: {
+    from: 'eventlocations',
+    localField: '_id',
+    foreignField: 'event',
+    as: 'locationData'
+  }
+},
+{
+  $addFields: {
+    locationMatch: {
+      $cond: [
+        { $gt: [{ $size: '$locationData' }, 0] },
+        {
+          $in: [userCountry, { $map: { input: '$locationData', as: 'loc', in: '$$loc.location' } }]
+        },
+        true // if locationData is empty, allow the event
+      ]
+    }
+  }
+},
+{
+  $match: {
+    locationMatch: true
+  }
+}
+
     ];
 
     if (search && search.trim() !== '') {
@@ -396,6 +450,33 @@ async getUpcomingEvents(req: Request, res: Response) {
           isDeleted: { $ne: true }
         },
       },
+      {
+  $lookup: {
+    from: 'eventlocations',
+    localField: '_id',
+    foreignField: 'event',
+    as: 'locationData'
+  }
+},
+{
+  $addFields: {
+    locationMatch: {
+      $cond: [
+        { $gt: [{ $size: '$locationData' }, 0] },
+        {
+          $in: [userCountry, { $map: { input: '$locationData', as: 'loc', in: '$$loc.location' } }]
+        },
+        true // if locationData is empty, allow the event
+      ]
+    }
+  }
+},
+{
+  $match: {
+    locationMatch: true
+  }
+}
+
     ];
 
     if (search && search.trim() !== '') {
@@ -488,6 +569,32 @@ async getUpcomingEvents(req: Request, res: Response) {
       }
     }
   },
+  {
+  $lookup: {
+    from: 'eventlocations',
+    localField: '_id',
+    foreignField: 'event',
+    as: 'locationData'
+  }
+},
+{
+  $addFields: {
+    locationMatch: {
+      $cond: [
+        { $gt: [{ $size: '$locationData' }, 0] },
+        {
+          $in: [userCountry, { $map: { input: '$locationData', as: 'loc', in: '$$loc.location' } }]
+        },
+        true // If locationData is empty, allow the event
+      ]
+    }
+  }
+},
+{
+  $match: {
+    locationMatch: true
+  }
+},
       {
         $project: {
           adminStatus: 0,
