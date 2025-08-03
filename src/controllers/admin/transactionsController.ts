@@ -142,70 +142,52 @@ class transactionsController {
 
 getTransactionStats = async (req: Request, res: Response) => {
   try {
+    const currencyFilter = req.query.currency as string | undefined;
+
     const match: any = {};
 
-    // Handle multiple currencies filter
-    if (req.query.currency) {
-      const currencies = Array.isArray(req.query.currency)
-        ? req.query.currency
-        : (req.query.currency as string).split(',').map((c) => c.trim().toLowerCase());
-
+    if (currencyFilter) {
+      const currencies = currencyFilter
+        .split(',')
+        .map((c) => c.trim());
       match.currency = { $in: currencies };
     }
 
-    const stats = await Transactions.aggregate([
+    const [stats] = await Transactions.aggregate([
       { $match: match },
       {
         $group: {
-          _id: '$currency',
+          _id: null,
           totalTransactions: { $sum: 1 },
           totalAmount: { $sum: '$amount' },
 
-          // Status counts
           successful: {
-            $sum: {
-              $cond: [{ $eq: ['$status', 'successful'] }, 1, 0],
-            },
+            $sum: { $cond: [{ $eq: ['$status', TransactionStatus.SUCCESSFUL] }, 1, 0] },
           },
           pending: {
-            $sum: {
-              $cond: [{ $eq: ['$status', 'pending'] }, 1, 0],
-            },
+            $sum: { $cond: [{ $eq: ['$status', TransactionStatus.PENDING] }, 1, 0] },
           },
           failed: {
-            $sum: {
-              $cond: [{ $eq: ['$status', 'failed'] }, 1, 0],
-            },
+            $sum: { $cond: [{ $eq: ['$status', TransactionStatus.FAILED] }, 1, 0] },
           },
 
-          // Gift transactions
           giftTransactions: {
-            $sum: {
-              $cond: [{ $eq: ['$isGift', true] }, 1, 0],
-            },
+            $sum: { $cond: [{ $eq: ['$isGift', true] }, 1, 0] },
           },
           nonGiftTransactions: {
-            $sum: {
-              $cond: [{ $eq: ['$isGift', false] }, 1, 0],
-            },
+            $sum: { $cond: [{ $eq: ['$isGift', false] }, 1, 0] },
           },
 
-          // Payment method breakdown
           flutterwaveCount: {
-            $sum: {
-              $cond: [{ $eq: ['$paymentMethod', 'flutterwave'] }, 1, 0],
-            },
+            $sum: { $cond: [{ $eq: ['$paymentMethod', 'flutterwave'] }, 1, 0] },
           },
           stripeCount: {
-            $sum: {
-              $cond: [{ $eq: ['$paymentMethod', 'stripe'] }, 1, 0],
-            },
+            $sum: { $cond: [{ $eq: ['$paymentMethod', 'stripe'] }, 1, 0] },
           },
         },
       },
       {
         $project: {
-          currency: '$_id',
           _id: 0,
           totalTransactions: 1,
           totalAmount: 1,
@@ -218,17 +200,15 @@ getTransactionStats = async (req: Request, res: Response) => {
           stripeCount: 1,
         },
       },
-      {
-        $sort: { currency: 1 },
-      },
     ]);
 
-    return res.status(200).json({ success: true, stats });
+    return res.status(200).json({ success: true, stats: stats || {} });
   } catch (error) {
     console.error('Error in getTransactionStats:', error);
     return res.status(500).json({ success: false, message: 'Internal Server Error' });
   }
 };
+
 
 }
 export default new transactionsController();
