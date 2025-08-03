@@ -7,6 +7,7 @@ import Feedback from '../../models/Feedback';
 class feedbackController {
       async getAllFeedbacks(req: Request, res: Response) {
           try {
+            const id = req.params.id
             const page = Number(req.query.page) || 1;
             const limit = Number(req.query.limit) || 10;
             const search = req.query.search as string | undefined;
@@ -17,7 +18,8 @@ class feedbackController {
           const dateMatch: any = {};
           if (startDate) dateMatch.$gte = startDate;
           if (endDate) dateMatch.$lte = endDate;
-    
+
+            if(id) filter.event = new mongoose.Types.ObjectId(id)
     
             const pipeline: any[] = [
       { 
