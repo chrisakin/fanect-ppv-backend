@@ -6,5 +6,6 @@ const router = Router();
 
 router.get('/all-organisers', adminAuthMiddleware, OrganiserController.getAllOrganisers);
 router.get('/single-organiser-events/:id', adminAuthMiddleware, OrganiserController.getEventsCreatedByOrganiser);
+router.get('/single-organiser-analytics/:id', adminAuthMiddleware, OrganiserController.getOrganiserAnalytics)
 
 export default router;

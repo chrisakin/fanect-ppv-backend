@@ -1,6 +1,5 @@
 
 import mongoose from "mongoose";
-import User, { UserStatus } from "../../models/User";
 import { paginateAggregate } from "../../services/paginationService";
 import { CreateAdminActivity } from "../../services/userActivityService";
 import { Request, Response } from 'express';
@@ -259,6 +258,9 @@ async  getEventsCreatedByOrganiser(req: Request, res: Response) {
   }
 }
 
+async getOrganiserAnalytics(req: Request, res: Response) {
+  
+}
 }
 
 export default new organisersController();
