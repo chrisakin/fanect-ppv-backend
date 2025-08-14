@@ -32,7 +32,7 @@ async getAllOrganisers(req: Request, res: Response) {
     // Match events created by users
     pipeline.push({
       $match: {
-        createdByModel: 'User'
+        createdByModel: { $ne: 'Admin' }
       }
     });
 
@@ -259,7 +259,426 @@ async  getEventsCreatedByOrganiser(req: Request, res: Response) {
 }
 
 async getOrganiserAnalytics(req: Request, res: Response) {
-  
+  const { id } = req.params;
+  const { month: selectedMonth, currency: selectedCurrency } = req.query;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ message: 'Invalid organiser ID' });
+  }
+
+  try {
+    const pipeline: any[] = [
+      {
+        $match: {
+          createdBy: new mongoose.Types.ObjectId(id),
+        }
+      },
+      {
+        $lookup: {
+          from: 'transactions',
+          localField: '_id',
+          foreignField: 'event',
+          as: 'transactions'
+        }
+      },
+      {
+        $lookup: {
+          from: 'views',
+          localField: '_id',
+          foreignField: 'event',
+          as: 'views'
+        }
+      },
+      {
+        $lookup: {
+          from: 'feedbacks',
+          localField: '_id',
+          foreignField: 'event',
+          as: 'feedbacks'
+        }
+      },
+      {
+        $lookup: {
+          from: 'streampasses',
+          localField: '_id',
+          foreignField: 'event',
+          as: 'streampasses'
+        }
+      },
+      {
+        $group: {
+          _id: '$createdBy',
+          // Event Statistics
+          totalEvents: { $sum: 1 },
+          publishedEvents: {
+            $sum: { $cond: [{ $eq: ['$published', true] }, 1, 0] }
+          },
+          approvedEvents: {
+            $sum: { $cond: [{ $eq: ['$adminStatus', AdminStatus.APPROVED] }, 1, 0] }
+          },
+          pendingEvents: {
+            $sum: { $cond: [{ $eq: ['$adminStatus', AdminStatus.PENDING] }, 1, 0] }
+          },
+          rejectedEvents: {
+            $sum: { $cond: [{ $eq: ['$adminStatus', AdminStatus.REJECTED] }, 1, 0] }
+          },
+          liveEvents: {
+            $sum: { $cond: [{ $eq: ['$status', EventStatus.LIVE] }, 1, 0] }
+          },
+          upcomingEvents: {
+            $sum: { $cond: [{ $eq: ['$status', EventStatus.UPCOMING] }, 1, 0] }
+          },
+          pastEvents: {
+            $sum: { $cond: [{ $eq: ['$status', EventStatus.PAST] }, 1, 0] }
+          },
+
+          // Financial Analytics
+          allTransactions: { $push: '$transactions' },
+          
+          // Engagement Analytics
+          allViews: { $push: '$views' },
+          allFeedbacks: { $push: '$feedbacks' },
+          allStreampasses: { $push: '$streampasses' },
+
+          // Event Details for further processing
+          events: {
+            $push: {
+              _id: '$_id',
+              name: '$name',
+              date: '$date',
+              status: '$status',
+              adminStatus: '$adminStatus',
+              published: '$published',
+              transactions: '$transactions',
+              views: '$views',
+              feedbacks: '$feedbacks',
+              streampasses: '$streampasses'
+            }
+          }
+        }
+      },
+      {
+        $addFields: {
+          // Flatten arrays for processing
+          flatTransactions: {
+            $reduce: {
+              input: '$allTransactions',
+              initialValue: [],
+              in: { $concatArrays: ['$$value', '$$this'] }
+            }
+          },
+          flatViews: {
+            $reduce: {
+              input: '$allViews',
+              initialValue: [],
+              in: { $concatArrays: ['$$value', '$$this'] }
+            }
+          },
+          flatFeedbacks: {
+            $reduce: {
+              input: '$allFeedbacks',
+              initialValue: [],
+              in: { $concatArrays: ['$$value', '$$this'] }
+            }
+          },
+          flatStreampasses: {
+            $reduce: {
+              input: '$allStreampasses',
+              initialValue: [],
+              in: { $concatArrays: ['$$value', '$$this'] }
+            }
+          }
+        }
+      },
+      {
+        $addFields: {
+          // Filter transactions by month and currency if specified
+          filteredTransactions: {
+            $filter: {
+              input: '$flatTransactions',
+              as: 'transaction',
+              cond: {
+                $and: [
+                  selectedCurrency
+                    ? { $eq: ['$$transaction.currency', selectedCurrency] }
+                    : true,
+                  selectedMonth
+                    ? {
+                        $eq: [
+                          {
+                            $dateToString: {
+                              format: '%Y-%m',
+                              date: '$$transaction.createdAt'
+                            }
+                          },
+                          selectedMonth
+                        ]
+                      }
+                    : true
+                ]
+              }
+            }
+          }
+        }
+      },
+      {
+        $project: {
+          _id: 1,
+          
+          // Event Statistics
+          eventStats: {
+            total: '$totalEvents',
+            published: '$publishedEvents',
+            approved: '$approvedEvents',
+            pending: '$pendingEvents',
+            rejected: '$rejectedEvents',
+            live: '$liveEvents',
+            upcoming: '$upcomingEvents',
+            past: '$pastEvents'
+          },
+
+          // Financial Analytics
+          revenue: {
+            total: {
+              $sum: {
+                $map: {
+                  input: '$filteredTransactions',
+                  as: 'transaction',
+                  in: { $toDouble: '$$transaction.amount' }
+                }
+              }
+            },
+            totalTransactions: { $size: '$filteredTransactions' },
+            successfulTransactions: {
+              $size: {
+                $filter: {
+                  input: '$filteredTransactions',
+                  as: 'transaction',
+                  cond: { $eq: ['$$transaction.status', 'Successful'] }
+                }
+              }
+            },
+            giftTransactions: {
+              $size: {
+                $filter: {
+                  input: '$filteredTransactions',
+                  as: 'transaction',
+                  cond: { $eq: ['$$transaction.isGift', true] }
+                }
+              }
+            },
+            averageTransactionValue: {
+              $cond: [
+                { $gt: [{ $size: '$filteredTransactions' }, 0] },
+                {
+                  $divide: [
+                    {
+                      $sum: {
+                        $map: {
+                          input: '$filteredTransactions',
+                          as: 'transaction',
+                          in: { $toDouble: '$$transaction.amount' }
+                        }
+                      }
+                    },
+                    { $size: '$filteredTransactions' }
+                  ]
+                },
+                0
+              ]
+            }
+          },
+
+          // Engagement Analytics
+          engagement: {
+            totalViews: { $size: '$flatViews' },
+            liveViews: {
+              $size: {
+                $filter: {
+                  input: '$flatViews',
+                  as: 'view',
+                  cond: { $eq: ['$$view.type', 'live'] }
+                }
+              }
+            },
+            replayViews: {
+              $size: {
+                $filter: {
+                  input: '$flatViews',
+                  as: 'view',
+                  cond: { $eq: ['$$view.type', 'replay'] }
+                }
+              }
+            },
+            totalStreampassesSold: { $size: '$flatStreampasses' },
+            uniqueViewers: {
+              $size: {
+                $setUnion: {
+                  $map: {
+                    input: '$flatViews',
+                    as: 'view',
+                    in: '$$view.user'
+                  }
+                }
+              }
+            }
+          },
+
+          // Rating Analytics
+          ratings: {
+            totalRatings: { $size: '$flatFeedbacks' },
+            averageRating: {
+              $cond: [
+                { $gt: [{ $size: '$flatFeedbacks' }, 0] },
+                { $avg: '$flatFeedbacks.ratings' },
+                0
+              ]
+            },
+            ratingBreakdown: {
+              fiveStars: {
+                $size: {
+                  $filter: {
+                    input: '$flatFeedbacks',
+                    as: 'feedback',
+                    cond: { $eq: ['$$feedback.ratings', 5] }
+                  }
+                }
+              },
+              fourStars: {
+                $size: {
+                  $filter: {
+                    input: '$flatFeedbacks',
+                    as: 'feedback',
+                    cond: { $eq: ['$$feedback.ratings', 4] }
+                  }
+                }
+              },
+              threeStars: {
+                $size: {
+                  $filter: {
+                    input: '$flatFeedbacks',
+                    as: 'feedback',
+                    cond: { $eq: ['$$feedback.ratings', 3] }
+                  }
+                }
+              },
+              twoStars: {
+                $size: {
+                  $filter: {
+                    input: '$flatFeedbacks',
+                    as: 'feedback',
+                    cond: { $eq: ['$$feedback.ratings', 2] }
+                  }
+                }
+              },
+              oneStar: {
+                $size: {
+                  $filter: {
+                    input: '$flatFeedbacks',
+                    as: 'feedback',
+                    cond: { $eq: ['$$feedback.ratings', 1] }
+                  }
+                }
+              }
+            }
+          },
+
+          // Top Performing Events
+          topEvents: {
+            $slice: [
+              {
+                $sortArray: {
+                  input: {
+                    $map: {
+                      input: '$events',
+                      as: 'event',
+                      in: {
+                        _id: '$$event._id',
+                        name: '$$event.name',
+                        date: '$$event.date',
+                        status: '$$event.status',
+                        revenue: {
+                          $sum: {
+                            $map: {
+                              input: '$$event.transactions',
+                              as: 'transaction',
+                              in: { $toDouble: '$$transaction.amount' }
+                            }
+                          }
+                        },
+                        views: { $size: '$$event.views' },
+                        ratings: {
+                          $cond: [
+                            { $gt: [{ $size: '$$event.feedbacks' }, 0] },
+                            { $avg: '$$event.feedbacks.ratings' },
+                            0
+                          ]
+                        },
+                        streampassesSold: { $size: '$$event.streampasses' }
+                      }
+                    }
+                  },
+                  sortBy: { revenue: -1 }
+                }
+              },
+              5
+            ]
+          }
+        }
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'organiserInfo'
+        }
+      },
+      {
+        $unwind: '$organiserInfo'
+      },
+      {
+        $project: {
+          organiser: {
+            _id: '$organiserInfo._id',
+            firstName: '$organiserInfo.firstName',
+            lastName: '$organiserInfo.lastName',
+            email: '$organiserInfo.email',
+            username: '$organiserInfo.username',
+            joinedDate: '$organiserInfo.createdAt'
+          },
+          eventStats: 1,
+          revenue: 1,
+          engagement: 1,
+          ratings: 1,
+          topEvents: 1
+        }
+      }
+    ];
+
+    const result = await Event.aggregate(pipeline);
+
+    if (!result || result.length === 0) {
+      return res.status(404).json({ message: 'Organiser not found or has no events' });
+    }
+
+    // Log admin activity
+    CreateAdminActivity({
+      admin: req.admin.id as mongoose.Types.ObjectId,
+      eventData: `Admin viewed analytics for organiser with id ${id}`,
+      component: 'organisers',
+      activityType: 'organiseranalytics'
+    });
+
+    res.status(200).json({
+      message: 'Organiser analytics fetched successfully',
+      analytics: result[0]
+    });
+
+  } catch (error) {
+    console.error('Error fetching organiser analytics:', error);
+    res.status(500).json({ message: 'Something went wrong. Please try again later' });
+  }
 }
 }
 
