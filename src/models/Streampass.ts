@@ -12,12 +12,14 @@ export interface IStreampass extends Document {
     hasConverted: boolean;
     hasUsed: boolean;
     inSession?: boolean;
+    idempotencyKey: string;
 }
 
 const StreampassSchema = new Schema<IStreampass>({
     user: { type: Schema.Types.ObjectId, ref: 'User' },
     firstName: { type: String },
     email: { type: String},
+    idempotencyKey: { type: String},
     isGift: { type: Boolean, default: false },
     event: { type: Schema.Types.ObjectId, ref: 'Event', required: true },
     paymentMethod: { type: String, enum: ['flutterwave', 'stripe'], required: true },

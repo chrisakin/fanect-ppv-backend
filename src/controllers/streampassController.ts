@@ -221,7 +221,7 @@ async buyStreampass(req: Request, res: Response) {
 }
 
  async createSingleSession(req: Request, res: Response) {
-   const { streampassId, inSession } = req.body;
+   const { streampassId, inSession, idempotencyKey } = req.body;
    let session: boolean = inSession as boolean;
     const userId = req.user.id;
    try {
@@ -236,6 +236,7 @@ async buyStreampass(req: Request, res: Response) {
        return res.status(400).json({ message: 'Invalid inSession value' });
      }
      streampass.inSession = session;
+     streampass.idempotencyKey = idempotencyKey;
      await streampass.save();
      res.status(200).json({ message: 'Stream session updated successfully'});
    } catch (error) {
@@ -547,7 +548,7 @@ async buyStreampass(req: Request, res: Response) {
     try {
         const userId = req.user.id;
         const { eventId } = req.params;
-
+         const { idempotencyKey } = req.headers;
         const streampass = await Streampass.findOne({ user: userId, event: eventId }).select('-paymentMethod -paymentReference -createdAt -user')
             .populate({
                 path: 'event',
@@ -559,7 +560,7 @@ async buyStreampass(req: Request, res: Response) {
         if(!streampass.event) {
             return res.status(404).json({ message: 'Event not found for this streampass' });
         }
-        if(streampass.inSession == true) {
+        if(streampass.inSession == true || streampass.idempotencyKey != idempotencyKey) {
             return res.status(404).json({ message: 'You are already in a session for this streampass' });
         }
         CreateActivity({
