@@ -221,8 +221,7 @@ async buyStreampass(req: Request, res: Response) {
 }
 
  async createSingleSession(req: Request, res: Response) {
-   const { streampassId, inSession, idempotencyKey } = req.body;
-   let session: boolean = inSession as boolean;
+   const { streampassId, startSession, clientSessionToken } = req.body;
     const userId = req.user.id;
    try {
      const streampass = await Streampass.findById(streampassId);
@@ -232,13 +231,86 @@ async buyStreampass(req: Request, res: Response) {
      if (streampass.user.toString() !== userId) {
        return res.status(403).json({ message: 'You are not authorized to create a session for this Streampass' });
      }
-     if(typeof session !== 'boolean') {
-       return res.status(400).json({ message: 'Invalid inSession value' });
+     if(typeof startSession !== 'boolean') {
+       return res.status(400).json({ message: 'Invalid startSession value' });
      }
-     streampass.inSession = session;
-     streampass.idempotencyKey = idempotencyKey;
+
+     if (startSession) {
+       // Check for existing active session
+       const activeThreshold = new Date(Date.now() - 30 * 1000); // 30 seconds ago
+       const existingActiveSession = await Streampass.findOne({
+         user: userId,
+         event: streampass.event,
+         inSession: true,
+         lastActive: { $gte: activeThreshold }
+       });
+
+       if (existingActiveSession && existingActiveSession.id.toString() !== streampassId) {
+         return res.status(409).json({ 
+           message: 'You are already streaming this event on another device. Please close the other session first.' 
+         });
+       }
+
+       // Generate new session token
+       const newSessionToken = require('uuid').v4();
+       streampass.inSession = true;
+       streampass.sessionToken = newSessionToken;
+       streampass.lastActive = new Date();
+
+       await streampass.save();
+       res.status(200).json({ 
+         message: 'Stream session started successfully',
+         sessionToken: newSessionToken
+       });
+     } else {
+       // End session
+       if (!clientSessionToken) {
+         return res.status(400).json({ message: 'Client session token is required to end session' });
+       }
+
+       if (streampass.sessionToken !== clientSessionToken) {
+         return res.status(403).json({ message: 'Invalid session token' });
+       }
+
+       streampass.inSession = false;
+       streampass.sessionToken = undefined;
+       streampass.lastActive = undefined;
+       await streampass.save();
+       res.status(200).json({ message: 'Stream session ended successfully' });
+     }
+   } catch (error) {
+     console.error(error);
+     res.status(500).json({ message: 'Something went wrong. Please try again later' });
+   }
+ }
+
+ async updateStreamSessionHeartbeat(req: Request, res: Response) {
+   const { streampassId, clientSessionToken } = req.body;
+   const userId = req.user.id;
+
+   try {
+     if (!streampassId || !clientSessionToken) {
+       return res.status(400).json({ message: 'Streampass ID and client session token are required' });
+     }
+
+     const streampass = await Streampass.findById(streampassId);
+     if (!streampass) {
+       return res.status(404).json({ message: 'Streampass not found' });
+     }
+
+     if (streampass.user.toString() !== userId) {
+       return res.status(403).json({ message: 'You are not authorized to update this session' });
+     }
+
+     if (!streampass.inSession || streampass.sessionToken !== clientSessionToken) {
+       return res.status(403).json({ message: 'Invalid or expired session' });
+     }
+
+     // Update last active timestamp
+     streampass.lastActive = new Date();
      await streampass.save();
-     res.status(200).json({ message: 'Stream session updated successfully'});
+
+     res.status(200).json({ message: 'Heartbeat updated successfully' });
    } catch (error) {
      console.error(error);
      res.status(500).json({ message: 'Something went wrong. Please try again later' });
@@ -548,7 +620,7 @@ async buyStreampass(req: Request, res: Response) {
     try {
         const userId = req.user.id;
         const { eventId } = req.params;
-         const { idempotencyKey } = req.headers;
+    const { sessionToken } = req.headers;
         const streampass = await Streampass.findOne({ user: userId, event: eventId }).select('-paymentMethod -paymentReference -createdAt -user')
             .populate({
                 path: 'event',
@@ -560,17 +632,19 @@ async buyStreampass(req: Request, res: Response) {
         if(!streampass.event) {
             return res.status(404).json({ message: 'Event not found for this streampass' });
         }
-        if(streampass.inSession == true || streampass.idempotencyKey != idempotencyKey) {
-            return res.status(404).json({ message: 'You are already in a session for this streampass' });
+        
+        // Check if there's an active session within the threshold
+        const activeThreshold = new Date(Date.now() - 30 * 1000); // 30 seconds ago
+        if (streampass.inSession && streampass.lastActive && streampass.lastActive >= activeThreshold) {
+            return res.status(409).json({ message: 'You are already in an active session for this streampass' });
         }
+        
         CreateActivity({
             user: req.user.id as unknown as mongoose.Types.ObjectId,
             eventData: `Started streaming session for event ${(streampass.event as any).name}`,
             component: 'streampass',
             activityType: 'streamsession'
             });
-        // streampass.inSession = true;
-        // await streampass.save();
         res.status(200).json({ message: 'Streampass found', streampass });
     } catch (error) {
         console.error(error);

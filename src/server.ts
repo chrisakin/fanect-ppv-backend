@@ -9,6 +9,7 @@ import adminUsersRoutes from './routes/admin/users';
 import adminOrganisersRoutes from './routes/admin/organisers'
 import adminTransactionRoutes from './routes/admin/transactions'
 import adminFeedbackRoutes from './routes/admin/feedback'
+import adminAnalyticsRoutes from './routes/admin/analytics'
 import eventRoutes from './routes/event';
 import streampassRoutes from './routes/streampass'
 import fcmRoutes from './routes/notification';
@@ -44,6 +45,7 @@ app.use('/api/v1/admin/users', adminUsersRoutes);
 app.use('/api/v1/admin/organisers', adminOrganisersRoutes);
 app.use('/api/v1/admin/transactions', adminTransactionRoutes)
 app.use('/api/v1/admin/feedbacks', adminFeedbackRoutes)
+app.use('/api/v1/admin/analytics', adminAnalyticsRoutes)
 
 const PORT = process.env.PORT || 3000;
 

@@ -776,7 +776,7 @@ async getUpcomingEvents(req: Request, res: Response) {
     async getStreamKeyForEvent(req: Request, res: Response) {
     const userId = req.user.id;
     const { eventId } = req.params;
-    const { idempotencyKey } = req.headers;
+    const { sessionToken } = req.headers;
      // Check if user has a valid streampass for this event
     const streampass = await Streampass.findOne({ user: userId, event: eventId }).populate('user');
     if (!streampass) {
@@ -785,8 +785,11 @@ async getUpcomingEvents(req: Request, res: Response) {
      if(!streampass.event) {
             return res.status(404).json({ message: 'Event not found for this streampass' });
     }
-    if(streampass.inSession == true || streampass.idempotencyKey != idempotencyKey) {
-      return res.status(400).json({ message: 'You are already in a session for this streampass' });
+    
+    // Check if there's an active session within the threshold
+    const activeThreshold = new Date(Date.now() - 30 * 1000); // 30 seconds ago
+    if (streampass.inSession && streampass.lastActive && streampass.lastActive >= activeThreshold) {
+      return res.status(409).json({ message: 'You are already in an active session for this streampass' });
     }
 
     const event = await Event.findById(eventId);
