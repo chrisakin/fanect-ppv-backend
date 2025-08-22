@@ -19,6 +19,7 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import helmet from 'helmet';
 import getUsersCountry from './middleware/locationMiddleware';
+import cronService from './services/cronService';
 
 dotenv.config();
 
@@ -48,5 +49,21 @@ app.use('/api/v1/admin/feedbacks', adminFeedbackRoutes)
 app.use('/api/v1/admin/analytics', adminAnalyticsRoutes)
 
 const PORT = process.env.PORT || 3000;
+
+// Start cron jobs
+cronService.startAllJobs();
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+    console.log('SIGTERM received, stopping cron jobs...');
+    cronService.stopAllJobs();
+    process.exit(0);
+});
+
+process.on('SIGINT', () => {
+    console.log('SIGINT received, stopping cron jobs...');
+    cronService.stopAllJobs();
+    process.exit(0);
+});
 
 app.listen(PORT, () => console.log(`Server started on port ${PORT}`));

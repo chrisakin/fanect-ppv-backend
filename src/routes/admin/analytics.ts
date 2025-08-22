@@ -2,6 +2,7 @@ import { Router } from "express";
 import adminAuthMiddleware from "../../middleware/adminAuthMiddleware";
 import { Request, Response } from 'express';
 import SessionCleanupService from '../../services/sessionCleanupService';
+import cronService from '../../services/cronService';
 
 const router = Router();
 
@@ -29,6 +30,33 @@ router.post('/cleanup-sessions', adminAuthMiddleware, async (req: Request, res: 
     });
   } catch (error) {
     console.error('Error during manual cleanup:', error);
+    res.status(500).json({ message: 'Something went wrong. Please try again later' });
+  }
+});
+
+// Get cron job status
+router.get('/cron-status', adminAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const status = cronService.getJobsStatus();
+    res.status(200).json({
+      message: 'Cron job status retrieved successfully',
+      status
+    });
+  } catch (error) {
+    console.error('Error getting cron status:', error);
+    res.status(500).json({ message: 'Something went wrong. Please try again later' });
+  }
+});
+
+// Manual trigger for session cleanup
+router.post('/trigger-cleanup', adminAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    await cronService.triggerSessionCleanup();
+    res.status(200).json({
+      message: 'Session cleanup triggered successfully'
+    });
+  } catch (error) {
+    console.error('Error triggering cleanup:', error);
     res.status(500).json({ message: 'Something went wrong. Please try again later' });
   }
 });
