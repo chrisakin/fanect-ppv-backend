@@ -620,7 +620,6 @@ async buyStreampass(req: Request, res: Response) {
     try {
         const userId = req.user.id;
         const { eventId } = req.params;
-    const { sessionToken } = req.headers;
         const streampass = await Streampass.findOne({ user: userId, event: eventId }).select('-paymentMethod -paymentReference -createdAt -user')
             .populate({
                 path: 'event',

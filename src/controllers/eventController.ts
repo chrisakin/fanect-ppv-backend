@@ -776,7 +776,6 @@ async getUpcomingEvents(req: Request, res: Response) {
     async getStreamKeyForEvent(req: Request, res: Response) {
     const userId = req.user.id;
     const { eventId } = req.params;
-    const { sessionToken } = req.headers;
      // Check if user has a valid streampass for this event
     const streampass = await Streampass.findOne({ user: userId, event: eventId }).populate('user');
     if (!streampass) {
