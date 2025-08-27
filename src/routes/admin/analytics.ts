@@ -1,10 +1,15 @@
 import { Router } from "express";
 import adminAuthMiddleware from "../../middleware/adminAuthMiddleware";
-import { Request, Response } from 'express';
+import analyticsController from '../../controllers/admin/analyticsController';
 import SessionCleanupService from '../../services/sessionCleanupService';
 import cronService from '../../services/cronService';
+import { Request, Response } from 'express';
 
 const router = Router();
+
+// Main Analytics Endpoints
+router.get('/dashboard', adminAuthMiddleware, analyticsController.getDashboardOverview);
+router.get('/detailed', adminAuthMiddleware, analyticsController.getDetailedAnalytics);
 
 // Get session statistics for admin dashboard
 router.get('/session-stats', adminAuthMiddleware, async (req: Request, res: Response) => {

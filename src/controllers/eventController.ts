@@ -815,7 +815,7 @@ async getUpcomingEvents(req: Request, res: Response) {
     component: 'event',
     activityType: 'streamkey'
     });
-    res.json({ streamKey: streamKey, chatToken: chatToken, playbackUrl: event.ivsPlaybackUrl, chatRoomArn: event.ivsChatRoomArn });
+    res.json({ streamKey: streamKey, chatToken: chatToken, playbackUrl: event.ivsPlaybackUrl, chatRoomArn: event.ivsChatRoomArn, streampassId: streampass.id });
 }
 
 
