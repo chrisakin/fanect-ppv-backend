@@ -302,10 +302,6 @@ async buyStreampass(req: Request, res: Response) {
        return res.status(403).json({ message: 'You are not authorized to update this session' });
      }
 
-     if (!streampass.inSession || streampass.sessionToken !== clientSessionToken) {
-       return res.status(403).json({ message: 'Invalid or expired session' });
-     }
-
      // Update last active timestamp
      streampass.lastActive = new Date();
      await streampass.save();
