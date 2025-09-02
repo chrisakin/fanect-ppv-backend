@@ -9,9 +9,18 @@ import Feedback from '../../models/Feedback';
 import { CreateAdminActivity } from '../../services/userActivityService';
 
 class AnalyticsController {
-  
+  constructor() {
+    this.getUserStats = this.getUserStats.bind(this);
+    this.getEventStats = this.getEventStats.bind(this);
+    this.getRevenueStats = this.getRevenueStats.bind(this);
+    this.getEngagementStats = this.getEngagementStats.bind(this);
+    this.getRecentActivity = this.getRecentActivity.bind(this);
+    this.getTopEvents = this.getTopEvents.bind(this);
+    this.getUserGrowthData = this.getUserGrowthData.bind(this);
+    this.getRevenueGrowthData = this.getRevenueGrowthData.bind(this);
+  }
   // Dashboard Overview Analytics
-  async getDashboardOverview(req: Request, res: Response) {
+  getDashboardOverview = async (req: Request, res: Response) => {
     try {
       const { timeframe = '30d', currency } = req.query;
       
@@ -20,6 +29,9 @@ class AnalyticsController {
       let startDate: Date;
       
       switch (timeframe) {
+        case '24h': 
+        startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        break;
         case '7d':
           startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
           break;
@@ -91,7 +103,7 @@ class AnalyticsController {
   }
 
   // Detailed Analytics Page
-  async getDetailedAnalytics(req: Request, res: Response) {
+   getDetailedAnalytics = async (req: Request, res: Response) => {
     try {
       const { 
         startDate: queryStartDate, 
@@ -154,8 +166,7 @@ class AnalyticsController {
     }
   }
 
-  // Helper methods for dashboard overview
-  private async getUserStats(startDate: Date) {
+   async getUserStats(startDate: Date) {
     const [totalUsers, newUsers, activeUsers, verifiedUsers] = await Promise.all([
       User.countDocuments({ isDeleted: { $ne: true } }),
       User.countDocuments({ 
@@ -181,7 +192,7 @@ class AnalyticsController {
     };
   }
 
-  private async getEventStats(startDate: Date) {
+   async getEventStats(startDate: Date) {
     const [totalEvents, newEvents, liveEvents, approvedEvents] = await Promise.all([
       Event.countDocuments({ isDeleted: { $ne: true } }),
       Event.countDocuments({ 
@@ -207,7 +218,7 @@ class AnalyticsController {
     };
   }
 
-  private async getRevenueStats(startDate: Date, currencyFilter: any) {
+   async getRevenueStats(startDate: Date, currencyFilter: any) {
     const pipeline = [
       {
         $match: {
@@ -240,7 +251,7 @@ class AnalyticsController {
     };
   }
 
-  private async getEngagementStats(startDate: Date) {
+   async getEngagementStats(startDate: Date) {
     const [totalViews, totalStreampassesSold, totalFeedbacks] = await Promise.all([
       Views.countDocuments({ createdAt: { $gte: startDate } }),
       Streampass.countDocuments({ createdAt: { $gte: startDate } }),
@@ -260,7 +271,7 @@ class AnalyticsController {
     };
   }
 
-  private async getRecentActivity() {
+   async getRecentActivity() {
     const recentEvents = await Event.find({ isDeleted: { $ne: true } })
       .sort({ createdAt: -1 })
       .limit(5)
@@ -278,7 +289,7 @@ class AnalyticsController {
     };
   }
 
-  private async getTopEvents(startDate: Date, currencyFilter: any) {
+   async getTopEvents(startDate: Date, currencyFilter: any) {
     const pipeline: any = [
       {
         $lookup: {
@@ -346,7 +357,7 @@ class AnalyticsController {
     return await Event.aggregate(pipeline);
   }
 
-  private async getUserGrowthData(startDate: Date) {
+   async getUserGrowthData(startDate: Date) {
     const pipeline: any = [
       {
         $match: {
@@ -370,7 +381,7 @@ class AnalyticsController {
     return await User.aggregate(pipeline);
   }
 
-  private async getRevenueGrowthData(startDate: Date, currencyFilter: any) {
+   async getRevenueGrowthData(startDate: Date, currencyFilter: any) {
     const pipeline: any = [
       {
         $match: {
@@ -397,7 +408,7 @@ class AnalyticsController {
   }
 
   // Helper methods for detailed analytics
-  private async getPlatformMetrics(startDate: Date, endDate: Date) {
+   async getPlatformMetrics(startDate: Date, endDate: Date) {
     const [
       totalUsers,
       totalEvents,
@@ -439,7 +450,7 @@ class AnalyticsController {
     };
   }
 
-  private async getFinancialMetrics(startDate: Date, endDate: Date, currencyFilter: any) {
+   async getFinancialMetrics(startDate: Date, endDate: Date, currencyFilter: any) {
     const pipeline = [
       {
         $match: {
@@ -480,7 +491,7 @@ class AnalyticsController {
     };
   }
 
-  private async getUserMetrics(startDate: Date, endDate: Date, userStatusFilter: any) {
+   async getUserMetrics(startDate: Date, endDate: Date, userStatusFilter: any) {
     const userStats = await User.aggregate([
       {
         $match: {
@@ -509,7 +520,7 @@ class AnalyticsController {
     return userStats[0] || { total: 0, verified: 0, active: 0, locked: 0 };
   }
 
-  private async getEventMetrics(startDate: Date, endDate: Date, eventStatusFilter: any) {
+   async getEventMetrics(startDate: Date, endDate: Date, eventStatusFilter: any) {
     const eventStats = await Event.aggregate([
       {
         $match: {
@@ -541,7 +552,7 @@ class AnalyticsController {
     return eventStats[0] || { total: 0, approved: 0, pending: 0, rejected: 0, live: 0 };
   }
 
-  private async getEngagementMetrics(startDate: Date, endDate: Date) {
+   async getEngagementMetrics(startDate: Date, endDate: Date) {
     const [viewStats, feedbackStats] = await Promise.all([
       Views.aggregate([
         {
@@ -577,7 +588,7 @@ class AnalyticsController {
     };
   }
 
-  private async getGeographicData(startDate: Date, endDate: Date) {
+   async getGeographicData(startDate: Date, endDate: Date) {
     // This would require storing user location data
     // For now, return placeholder data
     return {
@@ -585,7 +596,7 @@ class AnalyticsController {
     };
   }
 
-  private async getPerformanceMetrics(startDate: Date, endDate: Date) {
+   async getPerformanceMetrics(startDate: Date, endDate: Date) {
     const conversionRate = await this.calculateConversionRate(startDate, endDate);
     const averageSessionDuration = await this.calculateAverageSessionDuration(startDate, endDate);
 
@@ -595,7 +606,7 @@ class AnalyticsController {
     };
   }
 
-  private async calculateConversionRate(startDate: Date, endDate: Date) {
+   async calculateConversionRate(startDate: Date, endDate: Date) {
     const [totalUsers, purchasingUsers] = await Promise.all([
       User.countDocuments({
         createdAt: { $gte: startDate, $lte: endDate },
@@ -609,7 +620,7 @@ class AnalyticsController {
     return totalUsers > 0 ? (purchasingUsers / totalUsers * 100).toFixed(2) : 0;
   }
 
-  private async calculateAverageSessionDuration(startDate: Date, endDate: Date) {
+   async calculateAverageSessionDuration(startDate: Date, endDate: Date) {
     // This would require session tracking
     // Return placeholder for now
     return 'Session tracking not implemented';
