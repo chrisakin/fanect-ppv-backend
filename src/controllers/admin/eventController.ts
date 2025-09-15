@@ -391,7 +391,7 @@ async getSingleEventTransactions(req: Request, res: Response) {
            if (req.query.currency) {
             const currencies = Array.isArray(req.query.currency)
              ? req.query.currency
-             : (req.query.currency as string).split(',').map(c => c.trim().toLowerCase());
+             : (req.query.currency as string).split(',').map(c => c.trim());
 
             filter.currency = { $in: currencies };
             }
