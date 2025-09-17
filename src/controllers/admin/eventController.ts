@@ -368,6 +368,45 @@ async getEventById(req: Request, res: Response) {
   }
 }
 
+async toggleSaveStream(req: Request, res: Response) {
+  const { id } = req.params;
+  const { canWatchSavedStream } = req.body;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ message: 'Invalid event ID' });
+  }
+
+  try {
+    const event = await Event.findById(id);
+    if (!event) {
+      return res.status(404).json({ message: 'Event not found' });
+    }
+    if(typeof canWatchSavedStream !== 'boolean') {
+      return res.status(400).json({ message: 'Invalid request data' });
+    }
+
+    event.canWatchSavedStream = canWatchSavedStream;
+    await event.save();
+
+    CreateAdminActivity({
+      admin: req.admin.id as mongoose.Types.ObjectId,
+      eventData: `Admin toggled save stream for ${event.name} to ${canWatchSavedStream}`,
+      component: 'event',
+      activityType: 'toggleSaveStream'
+    });
+
+    return res.status(200).json({
+      message: 'Save stream toggled successfully',
+      event
+    });
+  } catch (error) {
+    console.error('Toggle save stream error:', error);
+    return res.status(500).json({
+      message: 'Something went wrong. Please try again later',
+    });
+  }
+}
+
 async getSingleEventTransactions(req: Request, res: Response) {
           try {
             const id = req.params.id
