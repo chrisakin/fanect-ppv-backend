@@ -221,6 +221,7 @@ class EventController {
                      if(!url) {
                         return res.status(404).json({ message: 'Broadcast url has not been saved or the broadcast has not ended. Retry again after 10 mins.' });
                     }
+                    console.log(url);
                     event.ivsSavedBroadcastUrl = url;
                    }
                     await event.save();
