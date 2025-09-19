@@ -661,9 +661,9 @@ async createEvent(req: Request, res: Response) {
                     return res.status(404).json({ message: 'Event not found' });
                 }
     
-                if (event.createdBy.toString() !== req.admin.id) {
-                    return res.status(403).json({ message: 'Unauthorized' });
-                }
+                // if (event.createdBy.toString() !== req.admin.id) {
+                //     return res.status(403).json({ message: 'Unauthorized' });
+                // }
     
                 // Only check if date or time is being updated
                 if(date || time) {
