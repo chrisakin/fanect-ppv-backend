@@ -398,6 +398,98 @@ async getEventById(req: Request, res: Response) {
   }
 }
 
+async getRevenueReport(req: Request, res: Response) {
+  const { id } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ message: 'Invalid event ID' });
+  }
+
+  try {
+    const event = await Event.findById(id);
+    if (!event) {
+      return res.status(404).json({ message: 'Event not found' });
+    }
+
+    const eventObjectId = new mongoose.Types.ObjectId(id);
+
+    // run two aggregations in parallel:
+    // 1) revenue per currency from successful transactions
+    // 2) streampass count per currency by joining streampasses -> transactions (by paymentReference)
+    const [revenues, streampassCounts] = await Promise.all([
+      Transactions.aggregate([
+        { $match: { event: eventObjectId, status: TransactionStatus.SUCCESSFUL } },
+        { $group: { _id: '$currency', totalRevenue: { $sum: '$amount' } } }
+      ]),
+      Streampass.aggregate([
+        // only streampasses for the event that have a paymentReference
+        { $match: { event: eventObjectId, paymentReference: { $exists: true, $ne: null } } },
+        {
+          $lookup: {
+            from: 'transactions', // make sure this matches your transactions collection name
+            let: { pr: '$paymentReference' },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ['$paymentReference', '$$pr'] },
+                      { $eq: ['$status', TransactionStatus.SUCCESSFUL] },
+                      { $eq: ['$event', eventObjectId] }
+                    ]
+                  }
+                }
+              }
+            ],
+            as: 'txn'
+          }
+        },
+        // only keep streampasses that matched a successful transaction
+        { $unwind: { path: '$txn', preserveNullAndEmptyArrays: false } },
+        { $group: { _id: '$txn.currency', totalStreampass: { $sum: 1 } } }
+      ])
+    ]);
+
+    // merge into a single array keyed by currency
+    const map = new Map<string, { currency: string; totalRevenue: number; totalStreampass: number }>();
+
+    revenues.forEach((r: any) => {
+      const currency = r._id;
+      map.set(currency, {
+        currency,
+        totalRevenue: r.totalRevenue || 0,
+        totalStreampass: 0
+      });
+    });
+
+    streampassCounts.forEach((s: any) => {
+      const currency = s._id;
+      const existing = map.get(currency);
+      if (existing) {
+        existing.totalStreampass = s.totalStreampass || 0;
+      } else {
+        map.set(currency, {
+          currency,
+          totalRevenue: 0,
+          totalStreampass: s.totalStreampass || 0
+        });
+      }
+    });
+
+    const revenueforEvent = Array.from(map.values());
+
+    return res.status(200).json({
+      message: 'Revenue report fetched successfully',
+      data: revenueforEvent
+    });
+  } catch (error) {
+    console.error('Get revenue report error:', error);
+    return res.status(500).json({
+      message: 'Something went wrong. Please try again later'
+    });
+  }
+}
+
+
 async toggleSaveStream(req: Request, res: Response) {
   const { id } = req.params;
   const { canWatchSavedStream } = req.body;
