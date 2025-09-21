@@ -220,9 +220,11 @@ class EventController {
                 return res.status(404).json({ message: 'Event not found' });
             }
             if(!event.published) {
-                return res.status(404).json({ message: 'Event has not been approved ' });
+                return res.status(404).json({ message: 'Event has not been published' });
             }
-
+            if(event.adminStatus !== AdminStatus.APPROVED) {
+                return res.status(404).json({ message: 'Event has not been approved' });
+            }
             if(!session) {
                 return res.status(404).json({message: 'Session is reuired'})
             }
