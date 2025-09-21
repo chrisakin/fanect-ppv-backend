@@ -42,7 +42,7 @@ class AuthController {
             if(!email || !password || !firstName || !lastName) {
                 return res.status(400).json({ message: 'All fields are required' });
             }
-            const existingUser = await Admin.findOne({ email });
+            const existingUser = await Admin.findOne({ email: email.toLowerCase() });
             if (existingUser) {
                 return res.status(400).json({ message: 'Admin already exists' });
             }
@@ -57,7 +57,7 @@ class AuthController {
 
             const newUser = new Admin({
                 username,
-                email,
+                email: email.toLowerCase(),
                 password: hashedPassword,
                 firstName,
                 lastName,
@@ -71,14 +71,14 @@ class AuthController {
             await newUser.save();
             CreateAdminActivity({
             admin: newUser._id as mongoose.Types.ObjectId,
-            eventData: `New Admin registered an account with email: ${email}`,
+            eventData: `New Admin registered an account with email: ${email.toLowerCase()}`,
             component: 'auth',
             activityType: 'registration'
             });
 
             // Send verification email
             await EmailService.sendEmail(
-                email,
+                email.toLowerCase(),
                 'Email Verification',
                 'emailVerification',
                 { code: verificationCode, year: new Date().getFullYear()}
@@ -95,7 +95,7 @@ class AuthController {
         const { email } = req.body;
     
         try {
-            const admin = await Admin.findOne({ email });
+            const admin = await Admin.findOne({ email: email.toLowerCase() });
     
             if (!admin) {
                 return res.status(400).json({ message: 'admin not found' });
@@ -117,7 +117,7 @@ class AuthController {
             await admin.save();
              CreateAdminActivity({
                admin: admin._id as mongoose.Types.ObjectId,
-               eventData: `Admin requested for resend of verification code for email: ${email}`,
+               eventData: `Admin requested for resend of verification code for email: ${email.toLowerCase()}`,
                component: 'auth',
                activityType: 'resendotp'
             });
@@ -144,7 +144,7 @@ class AuthController {
   try {
     session.startTransaction();
 
-    const user = await Admin.findOne({ email }).session(session);
+    const user = await Admin.findOne({ email: email.toLowerCase() }).session(session);
 
     if (!user) {
       await session.abortTransaction();
@@ -181,7 +181,7 @@ class AuthController {
     await user.save({ session });
      CreateAdminActivity({
       admin: user._id as mongoose.Types.ObjectId,  
-      eventData: `Admin sucessfully verified email (${email})`,
+      eventData: `Admin sucessfully verified email (${email.toLowerCase()}) and logged in`,
       component: 'auth',
       activityType: 'verifyemail'
     });
@@ -215,7 +215,7 @@ class AuthController {
         const { email, password } = req.body;
 
         try {
-            const user = await Admin.findOne({ email });
+            const user = await Admin.findOne({ email: email.toLowerCase() });
             if (!user) {
                 return res.status(400).json({ message: 'Invalid credentials' });
             }
@@ -239,13 +239,13 @@ class AuthController {
             await user.save();
               CreateAdminActivity({
                  admin: user._id as mongoose.Types.ObjectId,   
-                 eventData: `Admin sucessfully loggedin but is not verified with email: ${email}`,
+                 eventData: `Admin sucessfully loggedin but is not verified with email: ${email.toLowerCase()}`,
                  component: 'auth',
                  activityType: 'login'
             });
             // Resend verification email
             await EmailService.sendEmail(
-                email,
+                email.toLowerCase(),
                 'Email Verification',
                 'emailVerification',
                 { code: verificationCode, year: new Date().getFullYear() }
@@ -344,7 +344,7 @@ class AuthController {
         const { email, platform } = req.body;
 
         try {
-            const user = await Admin.findOne({ email });
+            const user = await Admin.findOne({ email : email.toLowerCase() });
             if (!user) {
                 return res.status(400).json({ message: 'Admin not found' });
             }
@@ -378,7 +378,7 @@ class AuthController {
             }
             CreateAdminActivity({
             admin: user._id as mongoose.Types.ObjectId,
-            eventData: `Admin requested password reset for email: ${email}`,
+            eventData: `Admin requested password reset for email: ${email.toLowerCase()}`,
             component: 'auth',
             activityType: 'passwordreset'
             });
@@ -394,19 +394,19 @@ class AuthController {
             if(!email || !firstName || !lastName || !role) {
                 return res.status(400).json({ message: 'All fields are required' });
             }
-            const existingUser = await Admin.findOne({ email });
+            const existingUser = await Admin.findOne({ email: email.toLowerCase() });
             if (existingUser) {
                 return res.status(400).json({ message: 'Admin already exists' });
             }
             const username = email.split('@')[0]; // Use part of the email as username
-            const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+            const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.toLowerCase());
             if (!isEmailValid) {
                 return res.status(400).json({ message: 'Invalid email format' });
             }
             const resetToken = crypto.randomBytes(20).toString('hex');
             const newUser = new Admin({
                 username,
-                email,
+                email: email.toLowerCase(),
                 firstName,
                 lastName,
                 resetPasswordToken: resetToken,
@@ -418,7 +418,7 @@ class AuthController {
             await newUser.save();
             CreateAdminActivity({
             admin: req.admin.id as mongoose.Types.ObjectId,
-            eventData: `Admin created an admin with these details: ${firstName}, ${lastName}, ${email}`,
+            eventData: `Admin created an admin with these details: ${firstName}, ${lastName}, ${email.toLowerCase()}`,
             component: 'admin',
             activityType: 'passwordreset'
             });
@@ -970,7 +970,7 @@ async getAdminById(req: Request, res: Response) {
            // Sorting
            const sortBy = (req.query.sortBy as string) || 'createdAt';
            const sortOrderStr = (req.query.sortOrder as string) || 'desc';
-           const sortOrder = sortOrderStr.toLowerCase() === 'desc' ? 1 : -1;
+           const sortOrder = sortOrderStr.toLowerCase() === 'desc' ? -1 : 1;
        
            pipeline.push({ $sort: { [sortBy]: sortOrder } });
        

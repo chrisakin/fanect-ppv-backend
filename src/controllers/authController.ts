@@ -41,12 +41,12 @@ class AuthController {
             if(!email || !password || !firstName || !lastName || !userName) {
                 return res.status(400).json({ message: 'All fields are required' });
             }
-            const existingUser = await User.findOne({ email });
+            const existingUser = await User.findOne({ email: email.toLowerCase() });
             if (existingUser) {
                 return res.status(400).json({ message: 'User already exists' });
             }
             const username = userName || email.split('@')[0]; // Use part of the email as username
-            const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+            const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.toLowerCase());
             if (!isEmailValid) {
                 return res.status(400).json({ message: 'Invalid email format' });
             }
@@ -56,7 +56,7 @@ class AuthController {
 
             const newUser = new User({
                 username,
-                email,
+                email: email.toLowerCase(),
                 password: hashedPassword,
                 firstName,
                 lastName,
@@ -69,13 +69,13 @@ class AuthController {
             await newUser.save();
             CreateActivity({
                 user: newUser._id as mongoose.Types.ObjectId,
-                eventData: `New User registered an account with email: ${email}`,
+                eventData: `New User registered an account with email: ${email.toLowerCase()}`,
                 component: 'auth',
                 activityType: 'registration'
             });
             // Send verification email
             await EmailService.sendEmail(
-                email,
+                email.toLowerCase(),
                 'Email Verification',
                 'emailVerification',
                 { code: verificationCode, year: new Date().getFullYear()}
@@ -92,7 +92,7 @@ class AuthController {
         const { email } = req.body;
     
         try {
-            const user = await User.findOne({ email });
+            const user = await User.findOne({ email: email.toLowerCase() });
     
             if (!user) {
                 return res.status(400).json({ message: 'User not found' });
@@ -114,13 +114,13 @@ class AuthController {
             await user.save();
             CreateActivity({
                 user: user._id as mongoose.Types.ObjectId,
-                eventData: `User requested for resend of verification code for email: ${email}`,
+                eventData: `User requested for resend of verification code for email: ${email.toLowerCase()}`,
                 component: 'auth',
                 activityType: 'resendotp'
             });
             // Resend verification email
             await EmailService.sendEmail(
-                email,
+                email.toLowerCase(),
                 'Resend Email Verification',
                 'emailVerification',
                 { code: verificationCode, year: new Date().getFullYear() }
@@ -140,7 +140,7 @@ class AuthController {
   try {
     session.startTransaction();
     const sessionToken = uuidv4();
-    const user = await User.findOne({ email }).session(session);
+    const user = await User.findOne({ email: email.toLowerCase() }).session(session);
 
     if (!user) {
       await session.abortTransaction();
@@ -164,7 +164,7 @@ class AuthController {
 
     // ✅ Update associated streampasses and gifts
     const userId = (user._id as mongoose.Types.ObjectId).toString();
-    await this.getGiftsAndUpdateStreamPass(email, userId, session)
+    await this.getGiftsAndUpdateStreamPass(email.toLowerCase(), userId, session)
 
     // ✅ Mark user as verified
     user.isVerified = true;
@@ -180,7 +180,7 @@ class AuthController {
     await user.save({ session });
     CreateActivity({
       user: user._id as mongoose.Types.ObjectId,  
-      eventData: `User sucessfully verified email (${email})`,
+      eventData: `User sucessfully verified email (${email.toLowerCase()})`,
       component: 'auth',
       activityType: 'verifyemail'
     });
@@ -214,7 +214,7 @@ class AuthController {
         const { email, password } = req.body;
         const sessionToken = uuidv4();
         try {
-            const user = await User.findOne({ email });
+            const user = await User.findOne({ email: email.toLowerCase() });
             if (!user) {
                 return res.status(400).json({ message: 'Invalid credentials' });
             }
@@ -240,13 +240,13 @@ class AuthController {
             await user.save();
                 CreateActivity({
                     user: user._id as mongoose.Types.ObjectId,   
-                    eventData: `User sucessfully loggedin but is not verified with email: ${email}`,
+                    eventData: `User sucessfully loggedin but is not verified with email: ${email.toLowerCase()}`,
                     component: 'auth',
                     activityType: 'login'
                 });
             // Resend verification email
             await EmailService.sendEmail(
-                email,
+                email.toLowerCase(),
                 'Email Verification',
                 'emailVerification',
                 { code: verificationCode, year: new Date().getFullYear() }
@@ -361,7 +361,7 @@ class AuthController {
         const { email, platform } = req.body;
 
         try {
-            const user = await User.findOne({ email });
+            const user = await User.findOne({ email: email.toLowerCase() });
             if (!user) {
                 return res.status(400).json({ message: 'User not found' });
             }
@@ -395,7 +395,7 @@ class AuthController {
             }
             CreateActivity({
            user: user._id as mongoose.Types.ObjectId,
-           eventData: `User requested password reset for email: ${email}`,
+           eventData: `User requested password reset for email: ${email.toLowerCase()}`,
            component: 'auth',
            activityType: 'passwordreset'
         });

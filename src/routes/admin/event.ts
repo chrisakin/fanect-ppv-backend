@@ -10,7 +10,8 @@ router.put('/update/:id',  uploadFields, adminAuthMiddleware, EventController.up
 router.post('/update-event-locations/:id', adminAuthMiddleware, EventController.updateEventLocations)
 router.delete('/delete-event-location/:id', adminAuthMiddleware, EventController.removeEventLocations)
 router.get('/event-locations/:id', adminAuthMiddleware, EventController.getEventLocations)
-router.put('/publish/:id', adminAuthMiddleware, EventController.publishEvent);
+router.put('/publish/:id', adminAuthMiddleware, EventController.approveEvent);
+router.put('/publish-unpublished-event/:id', adminAuthMiddleware, EventController.publishEvent);
 router.put('/unpublish/:id', adminAuthMiddleware, EventController.unpublishEvent);
 router.put('/reject/:id', adminAuthMiddleware, EventController.rejectEvent);
 router.put('/update-event-session/:id', adminAuthMiddleware, EventController.updateEventSession);

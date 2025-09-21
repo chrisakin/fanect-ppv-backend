@@ -19,7 +19,7 @@ class EventController {
         this.updateEventSession = this.updateEventSession.bind(this)
         this.notifyEventStatus = this.notifyEventStatus.bind(this)
     }
-  async publishEvent(req: Request, res: Response) {
+  async approveEvent(req: Request, res: Response) {
         const { id } = req.params;
 
         try {
@@ -63,6 +63,31 @@ class EventController {
                 { userName: (event.createdBy as unknown as IUser).firstName, eventName: event.name, status: "Approved", statusClass: "status-approved", isApproved: true, year: new Date().getFullYear() }
             );
 
+            res.status(200).json({ message: 'Event published successfully', event });
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ message: 'Something went wrong. Please try again later' });
+        }
+    }
+
+    async publishEvent(req: Request, res: Response) {
+        const { id } = req.params;
+        try {
+            const event = await Event.findById(id).populate('createdBy', 'username email firstName lastName');
+            if (!event || event.isDeleted) {
+                return res.status(404).json({ message: 'Event not found' });
+            }
+            if(event.published) {
+                return res.status(404).json({ message: 'Event is already published' });
+            }
+            event.published = true;
+            await event.save();
+            CreateAdminActivity({
+            admin: req.admin.id as mongoose.Types.ObjectId,
+            eventData: `Admin published event with id ${id}`,
+            component: 'event',
+            activityType: 'publishevent'
+            });
             res.status(200).json({ message: 'Event published successfully', event });
         } catch (error) {
             console.error(error);
