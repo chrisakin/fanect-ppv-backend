@@ -406,16 +406,26 @@ async getEventById(req: Request, res: Response) {
             if (!event  || event.isDeleted) {
                 return res.status(404).json({ message: 'Event not found' });
             }
-            const bannerKey =  await s3Service.getS3KeyFromUrl(event.bannerUrl)
-            const watermarkKey = await s3Service.getS3KeyFromUrl(event.watermarkUrl)
             event.isDeleted = true;
             event.deletedAt = new Date();
             event.deletedBy = userId
             event.published = false;
             await event.save();
-
-            await  s3Service.deleteFile(bannerKey)
-            await s3Service.deleteFile(watermarkKey)
+             let bannerKey
+            let watermarkKey
+            let trailerKey
+            if(event.bannerUrl) {
+               bannerKey =  await s3Service.getS3KeyFromUrl(event.bannerUrl)
+               await s3Service.deleteFile(bannerKey)
+            }
+            if(event.watermarkUrl) {
+               watermarkKey = await s3Service.getS3KeyFromUrl(event.watermarkUrl)
+               await s3Service.deleteFile(watermarkKey)
+            }
+            if(event.trailerUrl) {
+               trailerKey =  await s3Service.getS3KeyFromUrl(event.trailerUrl)
+               await s3Service.deleteFile(trailerKey)
+            }
             if (event.ivsChannelArn) {
              await deleteChannel(event.ivsChannelArn);
             }
