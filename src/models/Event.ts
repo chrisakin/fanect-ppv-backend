@@ -89,6 +89,7 @@ export interface IEvent extends Document {
     watermarkUrl: string;
     createdBy: mongoose.Types.ObjectId;
     updatedBy: mongoose.Types.ObjectId;
+    deletedBy: mongoose.Types.ObjectId;
     publishedBy: mongoose.Types.ObjectId;
     unpublishedBy: mongoose.Types.ObjectId;
     published: boolean
@@ -139,6 +140,11 @@ const EventSchema: Schema = new Schema(
         status: { type: String, default: EventStatus.UPCOMING },
         adminStatus: { type: String, default: AdminStatus.PENDING },
         createdBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        required: true,
+        refPath: 'createdByModel'
+        },
+        deletedBy: {
         type: mongoose.Schema.Types.ObjectId,
         required: true,
         refPath: 'createdByModel'

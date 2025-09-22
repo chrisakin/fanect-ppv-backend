@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import Event, { AdminStatus, EventStatus } from '../../models/Event';
-import { createChannel, createChatRoom, getStreamKeyValue, getSavedBroadCastUrl } from '../../services/ivsService';
+import { createChannel, createChatRoom, getStreamKeyValue, getSavedBroadCastUrl, deleteChannel } from '../../services/ivsService';
 import Streampass from '../../models/Streampass';
 import { IUser } from '../../models/User';
 import { sendNotificationToUsers } from '../../services/fcmService';
@@ -397,6 +397,40 @@ async getEventById(req: Request, res: Response) {
     });
   }
 }
+
+ async deleteEvent(req: Request, res: Response) {
+        const { id } = req.params;
+        const userId = req.admin.id;
+        try {
+            const event = await Event.findById(id);
+            if (!event  || event.isDeleted) {
+                return res.status(404).json({ message: 'Event not found' });
+            }
+            const bannerKey =  await s3Service.getS3KeyFromUrl(event.bannerUrl)
+            const watermarkKey = await s3Service.getS3KeyFromUrl(event.watermarkUrl)
+            event.isDeleted = true;
+            event.deletedAt = new Date();
+            event.deletedBy = userId
+            event.published = false;
+            await event.save();
+
+            await  s3Service.deleteFile(bannerKey)
+            await s3Service.deleteFile(watermarkKey)
+            if (event.ivsChannelArn) {
+             await deleteChannel(event.ivsChannelArn);
+            }
+            CreateAdminActivity({
+            admin: userId as unknown as mongoose.Types.ObjectId,
+            eventData: `Admin deleted single event ${event.name}`,
+            component: 'event',
+            activityType: 'deleteevent'
+            });
+            res.status(200).json({ message: 'Event deleted successfully'});
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ message: 'Something went wrong. Please try again later' });
+        }
+    }
 
 async getRevenueReport(req: Request, res: Response) {
   const { id } = req.params;

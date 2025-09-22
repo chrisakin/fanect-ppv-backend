@@ -21,4 +21,5 @@ router.get('/single-event-metrics/:id', adminAuthMiddleware, EventController.get
 router.get('/single-event-transactions/:id', adminAuthMiddleware, EventController.getSingleEventTransactions)
 router.put('/toggle-save-stream/:id', adminAuthMiddleware, EventController.toggleSaveStream);
 router.get('/revenue-report/:id', adminAuthMiddleware, EventController.getRevenueReport);
+router.delete('/delete/:id', adminAuthMiddleware, EventController.deleteEvent);
 export default router;
