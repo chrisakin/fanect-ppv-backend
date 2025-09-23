@@ -59,7 +59,8 @@ class AnalyticsController {
         recentActivity,
         topEvents,
         userGrowth,
-        revenueGrowth
+        revenueGrowth,
+        currentViewCount
       ] = await Promise.all([
         this.getUserStats(startDate),
         this.getEventStats(startDate),
@@ -68,7 +69,8 @@ class AnalyticsController {
         this.getRecentActivity(),
         this.getTopEvents(startDate, currencyFilter),
         this.getUserGrowthData(startDate),
-        this.getRevenueGrowthData(startDate, currencyFilter)
+        this.getRevenueGrowthData(startDate, currencyFilter),
+        this.getCurrentViewCount()
       ]);
 
       CreateAdminActivity({
@@ -89,6 +91,7 @@ class AnalyticsController {
           engagementStats,
           recentActivity,
           topEvents,
+          currentViewCount,
           charts: {
             userGrowth,
             revenueGrowth
@@ -288,6 +291,48 @@ class AnalyticsController {
       recentUsers
     };
   }
+
+  async getCurrentViewCount() {
+  const currentViewCount = await Event.aggregate([
+    {
+      $match: { isDeleted: { $ne: true }, status: EventStatus.LIVE }
+    },
+    {
+      $lookup: {
+        from: 'views',
+        localField: '_id',
+        foreignField: 'event',
+        as: 'views'
+      }
+    },
+    {
+      $addFields: {
+        currentViews: { $size: '$views' }
+      }
+    },
+    {
+      $facet: {
+        topEvents: [
+          { $project: { name: 1, currentViews: 1 } },
+          { $sort: { currentViews: -1 } },
+          { $limit: 5 }
+        ],
+        totalViews: [
+          { $group: { _id: null, totalViews: { $sum: '$currentViews' } } }
+        ]
+      }
+    },
+    {
+      $project: {
+        topEvents: 1,
+        totalViews: { $arrayElemAt: ['$totalViews.totalViews', 0] }
+      }
+    }
+  ]);
+
+  return currentViewCount[0];
+}
+
 
    async getTopEvents(startDate: Date, currencyFilter: any) {
     const pipeline: any = [

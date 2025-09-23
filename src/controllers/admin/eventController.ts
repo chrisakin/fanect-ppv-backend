@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import Event, { AdminStatus, EventStatus } from '../../models/Event';
-import { createChannel, createChatRoom, getStreamKeyValue, getSavedBroadCastUrl } from '../../services/ivsService';
+import { createChannel, createChatRoom, getStreamKeyValue, getSavedBroadCastUrl, deleteChannel } from '../../services/ivsService';
 import Streampass from '../../models/Streampass';
 import { IUser } from '../../models/User';
 import { sendNotificationToUsers } from '../../services/fcmService';
@@ -19,7 +19,7 @@ class EventController {
         this.updateEventSession = this.updateEventSession.bind(this)
         this.notifyEventStatus = this.notifyEventStatus.bind(this)
     }
-  async publishEvent(req: Request, res: Response) {
+  async approveEvent(req: Request, res: Response) {
         const { id } = req.params;
 
         try {
@@ -63,6 +63,31 @@ class EventController {
                 { userName: (event.createdBy as unknown as IUser).firstName, eventName: event.name, status: "Approved", statusClass: "status-approved", isApproved: true, year: new Date().getFullYear() }
             );
 
+            res.status(200).json({ message: 'Event published successfully', event });
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ message: 'Something went wrong. Please try again later' });
+        }
+    }
+
+    async publishEvent(req: Request, res: Response) {
+        const { id } = req.params;
+        try {
+            const event = await Event.findById(id).populate('createdBy', 'username email firstName lastName');
+            if (!event || event.isDeleted) {
+                return res.status(404).json({ message: 'Event not found' });
+            }
+            if(event.published) {
+                return res.status(404).json({ message: 'Event is already published' });
+            }
+            event.published = true;
+            await event.save();
+            CreateAdminActivity({
+            admin: req.admin.id as mongoose.Types.ObjectId,
+            eventData: `Admin published event with id ${id}`,
+            component: 'event',
+            activityType: 'publishevent'
+            });
             res.status(200).json({ message: 'Event published successfully', event });
         } catch (error) {
             console.error(error);
@@ -195,9 +220,11 @@ class EventController {
                 return res.status(404).json({ message: 'Event not found' });
             }
             if(!event.published) {
-                return res.status(404).json({ message: 'Event has not been approved ' });
+                return res.status(404).json({ message: 'Event has not been published' });
             }
-
+            if(event.adminStatus !== AdminStatus.APPROVED) {
+                return res.status(404).json({ message: 'Event has not been approved' });
+            }
             if(!session) {
                 return res.status(404).json({message: 'Session is reuired'})
             }
@@ -221,6 +248,7 @@ class EventController {
                      if(!url) {
                         return res.status(404).json({ message: 'Broadcast url has not been saved or the broadcast has not ended. Retry again after 10 mins.' });
                     }
+                    console.log(url);
                     event.ivsSavedBroadcastUrl = url;
                    }
                     await event.save();
@@ -369,6 +397,142 @@ async getEventById(req: Request, res: Response) {
     });
   }
 }
+
+ async deleteEvent(req: Request, res: Response) {
+        const { id } = req.params;
+        const userId = req.admin.id;
+        try {
+            const event = await Event.findById(id);
+            if (!event  || event.isDeleted) {
+                return res.status(404).json({ message: 'Event not found' });
+            }
+            event.isDeleted = true;
+            event.deletedAt = new Date();
+            event.deletedBy = userId
+            event.published = false;
+            await event.save();
+             let bannerKey
+            let watermarkKey
+            let trailerKey
+            if(event.bannerUrl) {
+               bannerKey =  await s3Service.getS3KeyFromUrl(event.bannerUrl)
+               await s3Service.deleteFile(bannerKey)
+            }
+            if(event.watermarkUrl) {
+               watermarkKey = await s3Service.getS3KeyFromUrl(event.watermarkUrl)
+               await s3Service.deleteFile(watermarkKey)
+            }
+            if(event.trailerUrl) {
+               trailerKey =  await s3Service.getS3KeyFromUrl(event.trailerUrl)
+               await s3Service.deleteFile(trailerKey)
+            }
+            if (event.ivsChannelArn) {
+             await deleteChannel(event.ivsChannelArn);
+            }
+            CreateAdminActivity({
+            admin: userId as unknown as mongoose.Types.ObjectId,
+            eventData: `Admin deleted single event ${event.name}`,
+            component: 'event',
+            activityType: 'deleteevent'
+            });
+            res.status(200).json({ message: 'Event deleted successfully'});
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ message: 'Something went wrong. Please try again later' });
+        }
+    }
+
+async getRevenueReport(req: Request, res: Response) {
+  const { id } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ message: 'Invalid event ID' });
+  }
+
+  try {
+    const event = await Event.findById(id);
+    if (!event) {
+      return res.status(404).json({ message: 'Event not found' });
+    }
+
+    const eventObjectId = new mongoose.Types.ObjectId(id);
+
+    // run two aggregations in parallel:
+    // 1) revenue per currency from successful transactions
+    // 2) streampass count per currency by joining streampasses -> transactions (by paymentReference)
+    const [revenues, streampassCounts] = await Promise.all([
+      Transactions.aggregate([
+        { $match: { event: eventObjectId, status: TransactionStatus.SUCCESSFUL } },
+        { $group: { _id: '$currency', totalRevenue: { $sum: '$amount' } } }
+      ]),
+      Streampass.aggregate([
+        // only streampasses for the event that have a paymentReference
+        { $match: { event: eventObjectId, paymentReference: { $exists: true, $ne: null } } },
+        {
+          $lookup: {
+            from: 'transactions', // make sure this matches your transactions collection name
+            let: { pr: '$paymentReference' },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ['$paymentReference', '$$pr'] },
+                      { $eq: ['$status', TransactionStatus.SUCCESSFUL] },
+                      { $eq: ['$event', eventObjectId] }
+                    ]
+                  }
+                }
+              }
+            ],
+            as: 'txn'
+          }
+        },
+        // only keep streampasses that matched a successful transaction
+        { $unwind: { path: '$txn', preserveNullAndEmptyArrays: false } },
+        { $group: { _id: '$txn.currency', totalStreampass: { $sum: 1 } } }
+      ])
+    ]);
+
+    // merge into a single array keyed by currency
+    const map = new Map<string, { currency: string; totalRevenue: number; totalStreampass: number }>();
+
+    revenues.forEach((r: any) => {
+      const currency = r._id;
+      map.set(currency, {
+        currency,
+        totalRevenue: r.totalRevenue || 0,
+        totalStreampass: 0
+      });
+    });
+
+    streampassCounts.forEach((s: any) => {
+      const currency = s._id;
+      const existing = map.get(currency);
+      if (existing) {
+        existing.totalStreampass = s.totalStreampass || 0;
+      } else {
+        map.set(currency, {
+          currency,
+          totalRevenue: 0,
+          totalStreampass: s.totalStreampass || 0
+        });
+      }
+    });
+
+    const revenueforEvent = Array.from(map.values());
+
+    return res.status(200).json({
+      message: 'Revenue report fetched successfully',
+      data: revenueforEvent
+    });
+  } catch (error) {
+    console.error('Get revenue report error:', error);
+    return res.status(500).json({
+      message: 'Something went wrong. Please try again later'
+    });
+  }
+}
+
 
 async toggleSaveStream(req: Request, res: Response) {
   const { id } = req.params;
@@ -663,9 +827,9 @@ async createEvent(req: Request, res: Response) {
                     return res.status(404).json({ message: 'Event not found' });
                 }
     
-                if (event.createdBy.toString() !== req.admin.id) {
-                    return res.status(403).json({ message: 'Unauthorized' });
-                }
+                // if (event.createdBy.toString() !== req.admin.id) {
+                //     return res.status(403).json({ message: 'Unauthorized' });
+                // }
     
                 // Only check if date or time is being updated
                 if(date || time) {
