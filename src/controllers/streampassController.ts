@@ -593,9 +593,12 @@ async buyStreampass(req: Request, res: Response) {
             }
              const verifyFriends = friends && friends.length > 0 ? friends.map((f: { email: string }) => f.email.toLowerCase()) : [];
             if(verifyFriends.length > 0) {
-                const users = await Streampass.find({ email: { $in: verifyFriends } }).select('_id email').lean();
+                const users = await Streampass.find({ email: { $in: verifyFriends }, event: eventId }).select('_id email').lean();
                 if(users.length > 0) {
-                    return res.status(404).json({ message: `Some friends already have streampass for this event: ${users.map(u => u.email).join(', ')}` });
+                   const uniqueEmails = [...new Set(users.map(u => u.email))];
+                    return res.status(409).json({
+                      message: `Some friends already have streampass for this event: ${uniqueEmails.join(', ')}`
+                    });
                 }
             }
              const response = await flutterwaveInitialization(event, currency, user, friends, priceObj)
