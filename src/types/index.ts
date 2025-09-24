@@ -105,10 +105,10 @@ export const countryToCurrency: Record<string, string> = {
   IE: 'EUR', BE: 'EUR', AT: 'EUR', FI: 'EUR', GR: 'EUR', CY: 'EUR',
   EE: 'EUR', LV: 'EUR', LT: 'EUR', LU: 'EUR', MT: 'EUR', SI: 'EUR',
   SK: 'EUR', ME: 'EUR', XK: 'EUR', AD: 'EUR', MC: 'EUR', SM: 'EUR',
-  VA: 'EUR',
+  VA: 'EUR', EU: 'EUR',
 
   // British Pound
-  GB: 'GBP', GG: 'GBP', IM: 'GBP', JE: 'GBP',
+  GB: 'GBP', GG: 'GBP', IM: 'GBP', JE: 'GBP', UK: 'GBP',
 
   // Australian Dollar
   AU: 'AUD', CX: 'AUD', CC: 'AUD', NF: 'AUD',
@@ -234,7 +234,7 @@ export const countryToCurrency: Record<string, string> = {
   ZM: 'ZMW',
 
   // West African CFA Franc
-  BJ: 'XOF', BF: 'XOF', CI: 'XOF', GW: 'XOF', ML: 'XOF', NE: 'XOF', SN: 'XOF', TG: 'XOF',
+  BJ: 'XOF', BF: 'XOF', CI: 'XOF', CIV: 'XOF', IVO: 'XOF', GW: 'XOF', ML: 'XOF', NE: 'XOF', SN: 'XOF', TG: 'XOF',
 
   // Central African CFA Franc
   CM: 'XAF', CF: 'XAF', TD: 'XAF', CG: 'XAF', GQ: 'XAF', GA: 'XAF',
