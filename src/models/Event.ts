@@ -146,7 +146,6 @@ const EventSchema: Schema = new Schema(
         },
         deletedBy: {
         type: mongoose.Schema.Types.ObjectId,
-        required: true,
         refPath: 'createdByModel'
         },
         createdByModel: {
