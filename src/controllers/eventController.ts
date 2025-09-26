@@ -90,7 +90,7 @@ class EventController {
 
             const result = await paginateFind(
                 Event,
-                { createdBy: req.user.id },
+                { createdBy: req.user.id, isDeleted: { $ne: true } },
                 { page, limit },
                 { __v: 0, createdBy: 0, createdAt: 0, updatedAt: 0, published: 0, status: 0 },
                 {createdAt: -1}
