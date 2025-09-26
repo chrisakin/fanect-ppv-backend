@@ -117,7 +117,6 @@ async getUpcomingEvents(req: Request, res: Response) {
     const userId = req.user?.id as string; 
     const userCountry = req.country || 'US';
     const userCurrency = countryToCurrency[userCountry] || Currency.USD;
-
     const pipeline: any[] = [
       {
   $addFields: {
