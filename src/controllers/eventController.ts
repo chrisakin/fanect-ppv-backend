@@ -16,7 +16,7 @@ import { CreateActivity } from '../services/userActivityService';
 
 class EventController {
     async createEvent(req: Request, res: Response) {
-        const { name, date, time, description, prices, haveBroadcastRoom, broadcastSoftware, scheduledTestDate } = req.body;
+        const { name, date, time, description, prices, haveBroadcastRoom, broadcastSoftware, scheduledTestDate, timezone } = req.body;
         const userId = req.user.id;
         let price
         if(!prices ) {
@@ -28,7 +28,9 @@ class EventController {
         price = prices
         }
         try {
+          console.log(date, time)
              const eventDateTime = new Date(`${date}T${time}`);
+             console.log(eventDateTime)
             if (isNaN(eventDateTime.getTime()) || eventDateTime <= new Date()) {
                 return res.status(400).json({ message: 'Event date and time must be in the future' });
             }
@@ -66,7 +68,8 @@ class EventController {
                 broadcastSoftware,
                 scheduledTestDate,
                 createdBy: userId,
-                createdByModel: 'User'
+                createdByModel: 'User', 
+                timezone
             });
 
             await event.save();
@@ -117,26 +120,27 @@ async getUpcomingEvents(req: Request, res: Response) {
 
     const pipeline: any[] = [
       {
-        $addFields: {
-          eventDateTime: {
-            $dateFromString: {
-              dateString: {
-                $concat: [
-                  { $dateToString: { format: '%Y-%m-%d', date: '$date' } },
-                  'T',
-                  {
-                    $cond: [
-                      { $eq: [{ $type: '$time' }, 'string'] },
-                      '$time',
-                      { $dateToString: { format: '%H:%M', date: '$time' } },
-                    ],
-                  },
-                ],
-              },
+  $addFields: {
+    eventDateTime: {
+      $dateFromString: {
+        dateString: {
+          $concat: [
+            { $dateToString: { format: '%Y-%m-%d', date: '$date' } },
+            "T",
+            {
+              $cond: [
+                { $eq: [{ $type: "$time" }, "string"] },
+                "$time",
+                { $dateToString: { format: "%H:%M", date: "$time" } },
+              ],
             },
-          },
+          ],
         },
-      },
+        timezone: { $ifNull: ["$timezone", "UTC"] } 
+      }
+    }
+  }
+},
       {
         $match: {
            eventDateTime: { $gt: yesterday },
@@ -271,27 +275,28 @@ async getUpcomingEvents(req: Request, res: Response) {
     const userCurrency = countryToCurrency[userCountry] || Currency.USD;
 
     const pipeline: any[] = [
-      {
-        $addFields: {
-          eventDateTime: {
-            $dateFromString: {
-              dateString: {
-                $concat: [
-                  { $dateToString: { format: '%Y-%m-%d', date: '$date' } },
-                  'T',
-                  {
-                    $cond: [
-                      { $eq: [{ $type: '$time' }, 'string'] },
-                      '$time',
-                      { $dateToString: { format: '%H:%M', date: '$time' } },
-                    ],
-                  },
-                ],
-              },
+     {
+  $addFields: {
+    eventDateTime: {
+      $dateFromString: {
+        dateString: {
+          $concat: [
+            { $dateToString: { format: '%Y-%m-%d', date: '$date' } },
+            "T",
+            {
+              $cond: [
+                { $eq: [{ $type: "$time" }, "string"] },
+                "$time",
+                { $dateToString: { format: "%H:%M", date: "$time" } },
+              ],
             },
-          },
+          ],
         },
-      },
+        timezone: { $ifNull: ["$timezone", "UTC"] }  // 👈 tell Mongo this datetime belongs to event’s tz
+      }
+    }
+  }
+},
       {
         $match: {
         //   eventDateTime: { $gt: now },
@@ -423,27 +428,28 @@ async getUpcomingEvents(req: Request, res: Response) {
     const userCurrency = countryToCurrency[userCountry] || Currency.USD;
 
     const pipeline: any[] = [
-      {
-        $addFields: {
-          eventDateTime: {
-            $dateFromString: {
-              dateString: {
-                $concat: [
-                  { $dateToString: { format: '%Y-%m-%d', date: '$date' } },
-                  'T',
-                  {
-                    $cond: [
-                      { $eq: [{ $type: '$time' }, 'string'] },
-                      '$time',
-                      { $dateToString: { format: '%H:%M', date: '$time' } },
-                    ],
-                  },
-                ],
-              },
+     {
+  $addFields: {
+    eventDateTime: {
+      $dateFromString: {
+        dateString: {
+          $concat: [
+            { $dateToString: { format: '%Y-%m-%d', date: '$date' } },
+            "T",
+            {
+              $cond: [
+                { $eq: [{ $type: "$time" }, "string"] },
+                "$time",
+                { $dateToString: { format: "%H:%M", date: "$time" } },
+              ],
             },
-          },
+          ],
         },
-      },
+        timezone: { $ifNull: ["$timezone", "UTC"] }   // 👈 tell Mongo this datetime belongs to event’s tz
+      }
+    }
+  }
+},
       {
         $match: {
         //   eventDateTime: { $gt: now },
@@ -653,7 +659,7 @@ async getUpcomingEvents(req: Request, res: Response) {
 
     async updateEvent(req: Request, res: Response) {
         const { id } = req.params;
-        const { name, date, time, description, prices, haveBroadcastRoom, broadcastSoftware, scheduledTestDate } = req.body;
+        const { name, date, time, description, prices, haveBroadcastRoom, broadcastSoftware, scheduledTestDate, timezone } = req.body;
         const userId = req.user.id;
         try {
              let price
@@ -710,6 +716,7 @@ async getUpcomingEvents(req: Request, res: Response) {
             event.haveBroadcastRoom = haveBroadcastRoom || event.haveBroadcastRoom
             event.broadcastSoftware = broadcastSoftware || event.broadcastSoftware
             event.scheduledTestDate = scheduledTestDate || event.scheduledTestDate
+            event.timezone = date != event.date || time != event.time ? timezone : event.timezone
             event.updatedBy = userId
 
             await event.save();

@@ -113,6 +113,7 @@ export interface IEvent extends Document {
     ivsIngestStreamKey: string | undefined;
     isDeleted: boolean;
     deletedAt: Date | undefined;
+    timezone: string;
 }
 
 export enum EventStatus {
@@ -161,6 +162,7 @@ const EventSchema: Schema = new Schema(
         ivsChannelArn: { type: String },
         ivsPlaybackUrl: { type: String },
         ivsChatRoomArn: { type: String },
+        timezone: {type: String },
         ivsIngestEndpoint: { type: String },
         ivsSavedBroadcastUrl: { type: String },
         ivsIngestStreamKey: { type: String },
