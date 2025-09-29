@@ -86,26 +86,105 @@ class EventController {
         }
     }
 
+    // async getEvents(req: Request, res: Response) {
+    //     try {
+    //         const page = Number(req.query.page) || 1;
+    //         const limit = Number(req.query.limit) || 10;
+
+    //         const result = await paginateFind(
+    //             Event,
+    //             { createdBy: req.user.id, isDeleted: { $ne: true } },
+    //             { page, limit },
+    //             { __v: 0, createdBy: 0, createdAt: 0, updatedAt: 0, published: 0, status: 0 },
+    //             {createdAt: -1}
+    //         );
+    //         res.status(200).json({ message: 'Events gotten successfully', ...result });
+    //     } catch (error) {
+    //         console.error(error);
+    //         res.status(500).json({ message: 'Something went wrong. Please try again later' });
+    //     }
+    // }
+
     async getEvents(req: Request, res: Response) {
-        try {
-            const page = Number(req.query.page) || 1;
-            const limit = Number(req.query.limit) || 10;
-
-            const result = await paginateFind(
-                Event,
-                { createdBy: req.user.id, isDeleted: { $ne: true } },
-                { page, limit },
-                { __v: 0, createdBy: 0, createdAt: 0, updatedAt: 0, published: 0, status: 0 },
-                {createdAt: -1}
-            );
-
-            res.status(200).json({ message: 'Events gotten successfully', ...result });
-        } catch (error) {
-            console.error(error);
-            res.status(500).json({ message: 'Something went wrong. Please try again later' });
-        }
+  try {
+    const  userId  = req.user.id
+     const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 10;
+     const search = req.query.search as string | undefined;
+    const pipeline: any = []
+    if (search && search.trim() !== '') {
+      pipeline.push({
+        $match: {
+          $or: [
+            { name: { $regex: search, $options: 'i' } },
+            { description: { $regex: search, $options: 'i' } },
+          ],
+        },
+      });
     }
-
+    pipeline.push(
+      {
+        $match: {
+          createdBy: new Types.ObjectId(userId),
+          isDeleted: { $ne: true }
+        }
+      },
+          {
+  $addFields: {
+    eventDateTime: {
+      $dateFromString: {
+        dateString: {
+          $concat: [
+            { $dateToString: { format: '%Y-%m-%d', date: '$date' } },
+            "T",
+            {
+              $cond: [
+                { $eq: [{ $type: "$time" }, "string"] },
+                "$time",
+                { $dateToString: { format: "%H:%M", date: "$time" } },
+              ],
+            },
+          ],
+        },
+        timezone: { $ifNull: ["$timezone", "UTC"] } 
+      }
+    }
+  }
+},
+      {
+        $sort: { createdAt: -1 }
+      },
+      {
+        $project: {
+          __v: 0,
+          createdBy: 0,
+          createdAt: 0,
+          updatedAt: 0,
+          published: 0,
+          status: 0
+        }
+      },
+    )
+    console.log(pipeline);
+    const result = await paginateAggregate(Event, pipeline, { page, limit });
+    console.log(result)
+   if(userId) {
+     CreateActivity({
+    user: userId as unknown as mongoose.Types.ObjectId,
+    eventData: `User requested created events`,
+    component: 'event',
+    activityType: 'createdevent'
+    });
+   }
+    res.status(200).json({
+      message: 'Events gotten successfully',
+      ...result,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Something went wrong. Please try again later' });
+  }
+}
 
 async getUpcomingEvents(req: Request, res: Response) {
   try {
