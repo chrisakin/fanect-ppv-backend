@@ -1109,7 +1109,7 @@ async notifyEventStatus(eventDoc: any, status: EventStatus) {
                 user.email,
                 'Live Stream Started',
                 'eventLiveStreamBegins', // your email template
-                { eventName, eventDate, eventTime, userName: user.firstName, year: new Date().getFullYear() }
+                { eventName, eventDate, eventTime, userName: user.firstName, year: new Date().getFullYear(), eventLink: `https://${process.env.FRONTEND_URL}/dashboard/tickets/watch-event/live/${eventDoc._id}` }
             );
         }
     }
