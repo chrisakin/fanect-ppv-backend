@@ -617,7 +617,7 @@ async getUpcomingEvents(req: Request, res: Response) {
 
     async getEventById(req: Request, res: Response) {
   const { id } = req.params;
-  const userId = req.user?.id as string; // from auth middleware
+  const userId = req.user?.id as string;
   const userCountry = req.country || 'US';
   const userCurrency = countryToCurrency[userCountry] || Currency.USD;
   if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -628,6 +628,28 @@ async getUpcomingEvents(req: Request, res: Response) {
     // Aggregate event and check if user has StreamPass
     const results = await Event.aggregate([
       { $match: { _id: new mongoose.Types.ObjectId(id) } },
+            {
+  $addFields: {
+    eventDateTime: {
+      $dateFromString: {
+        dateString: {
+          $concat: [
+            { $dateToString: { format: '%Y-%m-%d', date: '$date' } },
+            "T",
+            {
+              $cond: [
+                { $eq: [{ $type: "$time" }, "string"] },
+                "$time",
+                { $dateToString: { format: "%H:%M", date: "$time" } },
+              ],
+            },
+          ],
+        },
+        timezone: { $ifNull: ["$timezone", "UTC"] } 
+      }
+    }
+  }
+},
       {
         $lookup: {
           from: 'streampasses',
@@ -671,7 +693,7 @@ async getUpcomingEvents(req: Request, res: Response) {
         {
           $in: [userCountry, { $map: { input: '$locationData', as: 'loc', in: '$$loc.location' } }]
         },
-        true // If locationData is empty, allow the event
+        true
       ]
     }
   }
@@ -882,7 +904,7 @@ async getUpcomingEvents(req: Request, res: Response) {
     // Check if there's an active session within the threshold
     const activeThreshold = new Date(Date.now() - 30 * 1000); // 30 seconds ago
     if (streampass.inSession && streampass.lastActive && streampass.lastActive >= activeThreshold) {
-      return res.status(409).json({ message: 'You are already in an active session for this streampass' });
+      return res.status(409).json({ message: 'You’re still logged in from another session. This may happen if you just refreshed the page. We’ll automatically reconnect your stream in 15 seconds.' });
     }
 
     const event = await Event.findById(eventId);

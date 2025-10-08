@@ -1,4 +1,3 @@
-<!-- filepath: /src/views/emails/eventLiveStreamBegins.hbs -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -30,7 +29,7 @@
     .brand {
       font-size: 24px;
       font-weight: 700;
-      color: #16a34a  !important;
+      color: #16a34a !important;
       text-decoration: none;
     }
 
@@ -60,6 +59,27 @@
       display: flex;
       justify-content: space-between;
       margin-bottom: 8px;
+      font-size: 15px;
+    }
+
+    .cta-container {
+      text-align: center;
+      margin: 24px 0;
+    }
+
+    .cta-button {
+      display: inline-block;
+      background-color: #16a34a;
+      color: #ffffff !important;
+      padding: 12px 24px;
+      font-size: 16px;
+      font-weight: 600;
+      text-decoration: none;
+      border-radius: 6px;
+    }
+
+    .cta-button:hover {
+      background-color: #15803d;
     }
 
     .footer {
@@ -72,6 +92,11 @@
     @media (max-width: 600px) {
       .email-container {
         padding: 16px;
+      }
+
+      .cta-button {
+        width: 100%;
+        box-sizing: border-box;
       }
     }
   </style>
@@ -94,17 +119,23 @@
           <strong>Event:</strong>
           <span>{{eventName}}</span>
         </div>
-         <div class="receipt-item">
+        <div class="receipt-item">
           <strong>Event Date:</strong>
           <span>{{eventDate}}</span>
         </div>
-         <div class="receipt-item">
+        <div class="receipt-item">
           <strong>Event Time:</strong>
           <span>{{eventTime}}</span>
         </div>
       </div>
 
-      <p>You can now join the stream. For any assistance, kindly contact support@fanect.com.</p>
+      <div class="cta-container">
+        <a href="{{eventLink}}" class="cta-button" target="_blank" rel="noopener">
+          Join Event
+        </a>
+      </div>
+
+      <p>If you need any assistance, please contact <a href="mailto:support@fanect.com">support@fanect.com</a>.</p>
 
       <p>Enjoy the event!<br/>— The FaNect Team</p>
     </div>

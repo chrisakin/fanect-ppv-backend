@@ -247,7 +247,8 @@ async buyStreampass(req: Request, res: Response) {
 
        if (existingActiveSession && existingActiveSession.id.toString() !== streampassId) {
          return res.status(409).json({ 
-           message: 'You are already streaming this event on another device. Please close the other session first.' 
+           message: `You’re still logged in from another session.
+          This may happen if you just refreshed the page. We’ll automatically reconnect your stream in 15 seconds.` 
          });
        }
 
@@ -634,7 +635,7 @@ async buyStreampass(req: Request, res: Response) {
         // Check if there's an active session within the threshold
         const activeThreshold = new Date(Date.now() - 30 * 1000); // 30 seconds ago
         if (streampass.inSession && streampass.lastActive && streampass.lastActive >= activeThreshold) {
-            return res.status(409).json({ message: 'You are already in an active session for this streampass' });
+            return res.status(409).json({ message: 'You’re still logged in from another session. This may happen if you just refreshed the page. We’ll automatically reconnect your stream in 15 seconds.' });
         }
         
         CreateActivity({
