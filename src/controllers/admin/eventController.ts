@@ -919,7 +919,7 @@ async notifyEventStatus(eventDoc: any, status: EventStatus) {
                 user.email,
                 'Live Stream Started',
                 'eventLiveStreamBegins', // your email template
-                { eventName, eventDate, eventTime, userName: user.firstName, year: new Date().getFullYear(), eventLink: `https://${process.env.FRONTEND_URL}/dashboard/tickets/watch-event/live/${eventDoc._id}` }
+                { eventName, eventDate, eventTime, userName: user.firstName, year: new Date().getFullYear(), eventLink: `${process.env.FRONTEND_URL}/dashboard/tickets/watch-event/live/${eventDoc._id}`, mobileEventLink: `${process.env.BACKEND_URL}/event/?user_id=${user._id}&eventId=${eventDoc._id}` }
             );
         }
     }

@@ -23,11 +23,11 @@ const options: any = {
   timezone: 'UTC',
 };
     const task = cron.schedule(
-      '*/5 * * * *',
+      '*/20 * * * * *',
       async () => {
         try {
           console.log('🧹 Starting scheduled session cleanup...');
-          await SessionCleanupService.cleanupStaleSessions(2); 
+          await SessionCleanupService.cleanupStaleSessions(0.4); 
           console.log('✅ Scheduled session cleanup completed');
         } catch (error) {
           console.error('❌ Error during scheduled session cleanup:', error);
@@ -39,7 +39,7 @@ const options: any = {
     this.jobs.set(jobName, task);
     task.start();
 
-    console.log('🚀 Session cleanup cron job started (runs every 5 minutes)');
+    console.log('🚀 Session cleanup cron job started (runs every 20 seconds)');
   }
 
   startAllJobs(): void {

@@ -398,7 +398,7 @@ async getUpcomingEvents(req: Request, res: Response) {
                 }
               }
             },
-            { $limit: 1 } // optimize
+            { $limit: 1 }
           ],
           as: 'userStreamPass'
         }
@@ -426,7 +426,7 @@ async getUpcomingEvents(req: Request, res: Response) {
         {
           $in: [userCountry, { $map: { input: '$locationData', as: 'loc', in: '$$loc.location' } }]
         },
-        true // if locationData is empty, allow the event
+        true
       ]
     }
   }
@@ -436,7 +436,6 @@ async getUpcomingEvents(req: Request, res: Response) {
     locationMatch: true
   }
 }
-
     ];
 
     if (search && search.trim() !== '') {
@@ -480,12 +479,14 @@ async getUpcomingEvents(req: Request, res: Response) {
     );
 
     const result = await paginateAggregate(Event, pipeline, { page, limit });
+    if(userId) {
     CreateActivity({
     user: userId as unknown as mongoose.Types.ObjectId,
     eventData: `User requested live events`,
     component: 'event',
     activityType: 'liveevent'
     });
+  }
     res.status(200).json({
       message: 'Events gotten successfully',
       ...result,
@@ -1073,8 +1074,6 @@ async ivsWebhook(req: Request, res: Response) {
       const playbackUrl = `https://YOUR_BUCKET_NAME.s3.amazonaws.com/${prefix}index.m3u8`;
 
       console.log(`🎬 New recording ready: ${playbackUrl}`, channelArn);
-
-      // TODO: Save playbackUrl to your database here
     }
   }
 
@@ -1109,7 +1108,7 @@ async notifyEventStatus(eventDoc: any, status: EventStatus) {
                 user.email,
                 'Live Stream Started',
                 'eventLiveStreamBegins', // your email template
-                { eventName, eventDate, eventTime, userName: user.firstName, year: new Date().getFullYear(), eventLink: `https://${process.env.FRONTEND_URL}/dashboard/tickets/watch-event/live/${eventDoc._id}` }
+                { eventName, eventDate, eventTime, userName: user.firstName, year: new Date().getFullYear(), eventLink: `${process.env.FRONTEND_URL}/dashboard/tickets/watch-event/live/${eventDoc._id}`, mobileEventLink: `${process.env.BACKEND_URL}/event/?user_id=${user._id}&eventId=${eventDoc._id}` }
             );
         }
     }
