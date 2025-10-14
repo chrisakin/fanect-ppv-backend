@@ -114,12 +114,18 @@ export interface IEvent extends Document {
     isDeleted: boolean;
     deletedAt: Date | undefined;
     timezone: string;
+    streamingDeviceType: StreamingDeviceType;
 }
 
 export enum EventStatus {
     UPCOMING = 'Upcoming',
     LIVE = 'Live',
     PAST = 'Past'
+}
+
+export enum StreamingDeviceType {
+    MOBILE = 'Mobile',
+    NOTMOBILE = 'Not Mobile',
 }
 
 export enum AdminStatus {
@@ -175,6 +181,7 @@ const EventSchema: Schema = new Schema(
         rejectedBy: { type: mongoose.Types.ObjectId, ref: 'Admin' },
         startedEventBy: { type: mongoose.Types.ObjectId, ref: 'Admin' },
         endedEventBy: { type: mongoose.Types.ObjectId, ref: 'Admin' },
+        streamingDeviceType: { type: String, enum: Object.values(StreamingDeviceType), default: StreamingDeviceType.NOTMOBILE }
     },
     { timestamps: true }
 );

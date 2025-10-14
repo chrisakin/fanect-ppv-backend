@@ -16,7 +16,7 @@ import { CreateActivity } from '../services/userActivityService';
 
 class EventController {
     async createEvent(req: Request, res: Response) {
-        const { name, date, time, description, prices, haveBroadcastRoom, broadcastSoftware, scheduledTestDate, timezone } = req.body;
+        const { name, date, time, description, prices, haveBroadcastRoom, broadcastSoftware, scheduledTestDate, timezone, streamingDeviceType } = req.body;
         const userId = req.user.id;
         let price
         if(!prices ) {
@@ -68,7 +68,8 @@ class EventController {
                 broadcastSoftware,
                 scheduledTestDate,
                 createdBy: userId,
-                createdByModel: 'User', 
+                createdByModel: 'User',
+                streamingDeviceType,
                 timezone
             });
 
@@ -760,7 +761,7 @@ async getUpcomingEvents(req: Request, res: Response) {
 
     async updateEvent(req: Request, res: Response) {
         const { id } = req.params;
-        const { name, date, time, description, prices, haveBroadcastRoom, broadcastSoftware, scheduledTestDate, timezone } = req.body;
+        const { name, date, time, description, prices, haveBroadcastRoom, broadcastSoftware, scheduledTestDate, timezone, streamingDeviceType } = req.body;
         const userId = req.user.id;
         try {
              let price
@@ -819,6 +820,7 @@ async getUpcomingEvents(req: Request, res: Response) {
             event.scheduledTestDate = scheduledTestDate || event.scheduledTestDate
             event.timezone = date != event.date || time != event.time ? timezone : event.timezone
             event.updatedBy = userId
+            event.streamingDeviceType = streamingDeviceType || event.streamingDeviceType
 
             await event.save();
             if(bannerKey) {

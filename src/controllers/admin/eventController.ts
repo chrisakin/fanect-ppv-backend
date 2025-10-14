@@ -739,7 +739,7 @@ async getSingleEventMetrics(req: Request, res: Response) {
 }
 
 async createEvent(req: Request, res: Response) {
-        const { name, date, time, description, prices, haveBroadcastRoom, broadcastSoftware, scheduledTestDate } = req.body;
+        const { name, date, time, description, prices, haveBroadcastRoom, broadcastSoftware, scheduledTestDate, streamingDeviceType } = req.body;
         const userId = req.admin.id;
         let price
         if(!prices ) {
@@ -789,6 +789,7 @@ async createEvent(req: Request, res: Response) {
                 broadcastSoftware,
                 scheduledTestDate,
                 createdBy: userId,
+                streamingDeviceType,
                 createdByModel: 'Admin'
             });
 
@@ -808,7 +809,7 @@ async createEvent(req: Request, res: Response) {
 
      async updateEvent(req: Request, res: Response) {
             const { id } = req.params;
-            const { name, date, time, description, prices, haveBroadcastRoom, broadcastSoftware, scheduledTestDate } = req.body;
+            const { name, date, time, description, prices, haveBroadcastRoom, broadcastSoftware, scheduledTestDate, streamingDeviceType } = req.body;
             const userId = req.admin.id;
             try {
                  let price
@@ -866,6 +867,7 @@ async createEvent(req: Request, res: Response) {
                 event.broadcastSoftware = broadcastSoftware || event.broadcastSoftware
                 event.scheduledTestDate = scheduledTestDate || event.scheduledTestDate
                 event.updatedBy = userId
+                event.streamingDeviceType = streamingDeviceType || event.streamingDeviceType
     
                 await event.save();
                 if(bannerKey) {
