@@ -231,6 +231,7 @@ class EventController {
                if (session === 'stream-start') {
                     event.status = EventStatus.LIVE;
                     event.startedEventBy = req.admin.id
+                    event.eventStartedDate = new Date()
                     await event.save();
                     broadcastEventStatus(id, {message: 'Event has started', status: EventStatus.LIVE});
                      await this.notifyEventStatus(event, EventStatus.LIVE);
@@ -243,14 +244,15 @@ class EventController {
                 } else if (session === 'stream-end') {
                     event.status = EventStatus.PAST;
                     event.endedEventBy = req.admin.id
-                   if(event.canWatchSavedStream) {
-                     const url = await getSavedBroadCastUrl(event.ivsChannelArn)
+                    event.eventEndedDate = new Date()
+                   //if(event.canWatchSavedStream) {
+                     const url = await getSavedBroadCastUrl(event.ivsChannelArn, event.eventStartedDate as Date)
                      if(!url) {
                         return res.status(404).json({ message: 'Broadcast url has not been saved or the broadcast has not ended. Retry again after 10 mins.' });
                     }
                     console.log(url);
                     event.ivsSavedBroadcastUrl = url;
-                   }
+                   //}
                     await event.save();
                     broadcastEventStatus(id, {message: 'Event has ended', status: EventStatus.PAST});
                     await this.notifyEventStatus(event, EventStatus.PAST);

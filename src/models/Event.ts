@@ -115,6 +115,8 @@ export interface IEvent extends Document {
     deletedAt: Date | undefined;
     timezone: string;
     streamingDeviceType: StreamingDeviceType;
+    eventStartedDate: Date | undefined;
+    eventEndedDate: Date | undefined;
 }
 
 export enum EventStatus {
@@ -175,6 +177,8 @@ const EventSchema: Schema = new Schema(
         rejectionReason: { type: String },
         isDeleted: { type: Boolean, default: false },
         deletedAt: { type: Date },
+        eventStartedDate: { type: Date },
+        eventEndedDate: { type: Date },
         updatedBy: { type: mongoose.Types.ObjectId, refPath: 'createdByModel'},
         publishedBy: { type: mongoose.Types.ObjectId, ref: 'Admin' },
         unpublishedBy: { type: mongoose.Types.ObjectId, ref: 'Admin' },
