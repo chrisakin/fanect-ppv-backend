@@ -223,6 +223,7 @@ async buyStreampass(req: Request, res: Response) {
  async createSingleSession(req: Request, res: Response) {
    const { streampassId, startSession, clientSessionToken } = req.body;
     const userId = req.user.id;
+    console.log(userId)
    try {
      const streampass = await Streampass.findById(streampassId);
      if (!streampass) {
@@ -269,9 +270,9 @@ async buyStreampass(req: Request, res: Response) {
          return res.status(400).json({ message: 'Client session token is required to end session' });
        }
 
-       if (streampass.sessionToken !== clientSessionToken) {
-         return res.status(403).json({ message: 'Invalid session token' });
-       }
+      //  if (streampass.sessionToken !== clientSessionToken) {
+      //    return res.status(403).json({ message: 'Invalid session token' });
+      //  }
 
        streampass.inSession = false;
        streampass.sessionToken = undefined;
