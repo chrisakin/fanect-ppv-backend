@@ -12,9 +12,21 @@ import Gift from '../models/Gift';
 import Transactions, { TransactionStatus } from '../models/Transactions';
 import { CreateActivity } from '../services/userActivityService';
 
+/**
+ * Controller handling streampass purchase flows, payment session creation,
+ * session management (start/stop/heartbeat), and helper endpoints for banks/account resolution.
+ */
 class StreampassController {
 
-async buyStreampass(req: Request, res: Response) {
+  /**
+   * Purchase streampass(es) for an event.
+   * - Verifies payment via the selected gateway (Flutterwave or Stripe).
+   * - Handles single and gift purchases, creates Streampass/Gift/Transaction records in a DB transaction,
+   *   sends recipient and sender emails, and records a user activity.
+   * @param req Express request. Expects `body.paymentMethod`, `body.paymentReference` and gateway-specific payload returned by verification.
+   * @param res Express response. Returns 201 with created streampass information or appropriate 4xx/5xx errors.
+   */
+  async buyStreampass(req: Request, res: Response) {
   const { paymentMethod, paymentReference } = req.body;
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -220,7 +232,16 @@ async buyStreampass(req: Request, res: Response) {
   }
 }
 
- async createSingleSession(req: Request, res: Response) {
+  /**
+   * Start or end a single streaming session for a streampass.
+   * - `body.startSession` (boolean) controls starting vs ending a session.
+   * - When starting, ensures there is no concurrent active session for the same user and event,
+   *   generates a `sessionToken`, and sets `inSession`/`lastActive`.
+   * - When ending, requires `body.clientSessionToken` and validates it before closing the session.
+   * @param req Express request. Expects `body.streampassId`, `body.startSession`, optional `body.clientSessionToken` and authenticated `user.id`.
+   * @param res Express response with status and session token when started.
+   */
+  async createSingleSession(req: Request, res: Response) {
    const { streampassId, startSession, clientSessionToken } = req.body;
     const userId = req.user.id;
    try {
@@ -284,7 +305,13 @@ async buyStreampass(req: Request, res: Response) {
    }
  }
 
- async updateStreamSessionHeartbeat(req: Request, res: Response) {
+  /**
+   * Update the heartbeat (last active timestamp) for an active streampass session.
+   * - Validates the streampass exists and belongs to the requesting user, then updates `lastActive`.
+   * @param req Express request. Expects `body.streampassId`, `body.clientSessionToken` and authenticated `user.id`.
+   * @param res Express response indicating success or error.
+   */
+  async updateStreamSessionHeartbeat(req: Request, res: Response) {
    const { streampassId, clientSessionToken } = req.body;
    const userId = req.user.id;
 
@@ -314,7 +341,13 @@ async buyStreampass(req: Request, res: Response) {
  }
 
 
-        async getUpcomingTicketedEvents(req: Request, res: Response) {
+      /**
+       * Retrieve upcoming ticketed events for the authenticated user (paginated).
+       * - Aggregates streampass documents joined with event details and returns event list ordered by start time.
+       * @param req Express request. Supports `query.page` and `query.limit` and requires authenticated `user.id`.
+       * @param res Express response with paginated upcoming events.
+       */
+      async getUpcomingTicketedEvents(req: Request, res: Response) {
         try {
             const userId = new mongoose.Types.ObjectId(req.user.id);
             const page = Number(req.query.page) || 1;
@@ -389,6 +422,12 @@ async buyStreampass(req: Request, res: Response) {
         }
     }
 
+    /**
+     * Retrieve live ticketed events for the authenticated user (paginated).
+     * - Similar to `getUpcomingTicketedEvents` but filters by live event status.
+     * @param req Express request. Supports `query.page` and `query.limit` and requires authenticated `user.id`.
+     * @param res Express response with paginated live events.
+     */
     async getLiveTicketedEvents(req: Request, res: Response) {
         try {
             const userId = new mongoose.Types.ObjectId(req.user.id);
@@ -466,6 +505,12 @@ async buyStreampass(req: Request, res: Response) {
         }
     }
 
+    /**
+     * Retrieve past ticketed events for the authenticated user (paginated).
+     * - Returns events that have already occurred, with optional pagination.
+     * @param req Express request. Supports `query.page` and `query.limit` and requires authenticated `user.id`.
+     * @param res Express response with paginated past events.
+     */
     async getPastTicketedEvents(req: Request, res: Response) {
         try {
             const userId = new mongoose.Types.ObjectId(req.user.id);
@@ -541,7 +586,14 @@ async buyStreampass(req: Request, res: Response) {
         }
     }
 
-        async createStripeCheckoutSession(req: Request, res: Response) {
+      /**
+       * Create a Stripe checkout session for purchasing streampass(es).
+       * - Validates the event and ensures the user or friends don't already have streampasses.
+       * - Calls `createStripeCheckoutSession` service and records activity.
+       * @param req Express request. Expects `body.eventId`, `body.currency`, optional `body.friends` and authenticated `user` info.
+       * @param res Express response with the Stripe session URL or error.
+       */
+      async createStripeCheckoutSession(req: Request, res: Response) {
         try {
             const { eventId, currency, friends } = req.body;
             const event = await Event.findById(eventId) as (typeof Event.prototype & { _id: mongoose.Types.ObjectId });
@@ -578,6 +630,12 @@ async buyStreampass(req: Request, res: Response) {
         }
     }
 
+    /**
+     * Initialize a Flutterwave payment session for streampass purchase.
+     * - Validates the event and friends list, calls `flutterwaveInitialization` service, and records activity.
+     * @param req Express request. Expects `body.eventId`, `body.currency`, optional `body.friends` and authenticated `user` info.
+     * @param res Express response with a payment link or error.
+     */
     async flutterwaveInitialization(req: Request, res: Response) {
         try {
            const { eventId, currency, friends } = req.body;
@@ -612,6 +670,12 @@ async buyStreampass(req: Request, res: Response) {
             }
     }
 
+    /**
+     * Fetch the authenticated user's streampass for a specific event.
+     * - Ensures the streampass exists and is not in a recent active session; records a streaming activity upon success.
+     * @param req Express request. Expects `params.eventId` and authenticated `user.id`.
+     * @param res Express response with the streampass or 404/409 on errors.
+     */
     async getUserStreampassForEvent(req: Request, res: Response) {
     try {
         const userId = req.user.id;
@@ -647,7 +711,13 @@ async buyStreampass(req: Request, res: Response) {
     }
 }
 
-async getBanks(req: Request, res: Response) {
+  /**
+   * Retrieve supported banks for a given country code (defaults to 'NG').
+   * - Calls external service `getAllBanks` and returns the bank list.
+   * @param req Express request. Optional `query.country` (ISO country code).
+   * @param res Express response with `banks` array or 500 on failure.
+   */
+  async getBanks(req: Request, res: Response) {
         try {
             const country = req.query.country as string || 'NG';
             const data = await getAllBanks(country);
@@ -657,6 +727,12 @@ async getBanks(req: Request, res: Response) {
         }
     }
 
+    /**
+     * Resolve bank account details using account number and bank code.
+     * - Validates required body fields and calls the bank resolution service.
+     * @param req Express request. Expects `body.account_number` and `body.bank_code`.
+     * @param res Express response with resolved account information or 400/500 on error.
+     */
     async resolveAccount(req: Request, res: Response) {
         try {
             const { account_number, bank_code } = req.body;

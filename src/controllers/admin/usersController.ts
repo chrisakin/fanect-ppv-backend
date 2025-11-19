@@ -9,8 +9,19 @@ import { AdminStatus } from '../../models/Event';
 import { EventStatus } from 'aws-sdk/clients/launchwizard';
 import { CreateAdminActivity } from '../../services/userActivityService';
 
+/**
+ * Controller for admin user management endpoints.
+ * Provides listing, detail, activity, transaction history and lock/unlock operations for users.
+ */
 class usersController {
 
+ /**
+  * Get a paginated list of users with optional filters and search.
+  * - Supports query params: `page`, `limit`, `search`, `status`, `verified`, `locked`, `startDate`, `endDate`, `sortBy`, `sortOrder`.
+  * - Also aggregates events joined count for each user.
+  * @param req Express request with optional query parameters
+  * @param res Express response returning paginated users
+  */
  async getAllUsers(req: Request, res: Response) {
   try {
     const page = Number(req.query.page) || 1;
@@ -122,6 +133,12 @@ class usersController {
   }
 }
 
+/**
+ * Get a single user's profile and summary statistics by ID.
+ * - Returns joined event count and events created count along with basic profile fields.
+ * @param req Express request with `params.id` (user id)
+ * @param res Express response with user summary
+ */
 async getUserById(req: Request, res: Response) {
   const { id } = req.params;
 
@@ -200,6 +217,12 @@ async getUserById(req: Request, res: Response) {
   }
 }
 
+/**
+ * Get events a user has joined (purchased streampasses for).
+ * - Validates user id and supports paging, search, date range and event status filters.
+ * @param req Express request with `params.id` and optional query params
+ * @param res Express response with paginated events
+ */
 async  getEventsJoinedByUser(req: Request, res: Response) {
   const { id } = req.params;
 
@@ -322,6 +345,12 @@ async  getEventsJoinedByUser(req: Request, res: Response) {
   }
 }
 
+    /**
+     * Get paginated activity records for a user.
+     * - Supports query params: `page`, `limit`, `search`, `startDate`, `endDate`, `component`, `sortBy`, `sortOrder`.
+     * @param req Express request with `params.id` and optional query params
+     * @param res Express response with paginated activities
+     */
     async getUserActivities(req: Request, res: Response) {
      const { id } = req.params;
       if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -393,6 +422,12 @@ async  getEventsJoinedByUser(req: Request, res: Response) {
       }
     }
 
+    /**
+     * Get paginated transaction history for a user.
+     * - Supports filters: `status`, `giftStatus`, `paymentMethod`, `startDate`, `endDate`, `search`, `sortBy`, `sortOrder`.
+     * @param req Express request with `params.id` and optional query params
+     * @param res Express response with paginated transactions
+     */
     async getUsersTransactionHistory(req: Request, res: Response) {
      const { id } = req.params; 
       if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -509,6 +544,11 @@ async  getEventsJoinedByUser(req: Request, res: Response) {
     }
 
 
+   /**
+    * Lock a user account (sets status to INACTIVE and `locked = true`).
+    * @param req Express request with `params.id` (user id)
+    * @param res Express response with updated user
+    */
    async lockUser(req: Request, res: Response) {
      const { id } = req.params;
      if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -543,7 +583,12 @@ async  getEventsJoinedByUser(req: Request, res: Response) {
      }
    }
 
-   async unlockUser(req: Request, res: Response) {
+    /**
+     * Unlock a user account (sets status to ACTIVE and `locked = false`).
+     * @param req Express request with `params.id` (user id)
+     * @param res Express response with updated user
+     */
+    async unlockUser(req: Request, res: Response) {
      const { id } = req.params;
      if (!mongoose.Types.ObjectId.isValid(id)) {
        return res.status(400).json({ message: 'Invalid user ID' });

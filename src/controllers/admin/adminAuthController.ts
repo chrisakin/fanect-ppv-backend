@@ -35,6 +35,13 @@ class AuthController {
         this.getAdminById = this.getAdminById.bind(this)
     }
 
+    /**
+     * Register a new admin user.
+     * Validates required fields, checks for existing admin, hashes the password,
+     * creates the admin record, sends a verification email and logs the activity.
+     * @param req Express request containing `email`, `password`, `firstName`, `lastName` in `body`
+     * @param res Express response
+     */
     async register(req: Request, res: Response) {
         const { email, password, firstName, lastName } = req.body;
 
@@ -92,7 +99,14 @@ class AuthController {
     }
 
     async resendOtp(req: Request, res: Response) {
-        const { email } = req.body;
+      /**
+       * Resend the email verification OTP to an admin.
+       * Looks up the admin by email, ensures the account exists and is not verified/deleted,
+       * generates a new OTP, saves it and sends the verification email.
+       * @param req Express request containing `email` in `body`
+       * @param res Express response
+       */
+      const { email } = req.body;
     
         try {
             const admin = await Admin.findOne({ email: email.toLowerCase() });
@@ -137,8 +151,15 @@ class AuthController {
         }
     }
 
+        /**
+         * Verify admin email using a one-time code (OTP).
+         * Uses a mongoose transaction to mark the admin as verified, clear the code,
+         * set tokens, and return access/refresh tokens.
+         * @param req Express request containing `email` and `code` in `body`
+         * @param res Express response
+         */
         async verifyEmail(req: Request, res: Response) {
-  const { email, code } = req.body;
+      const { email, code } = req.body;
   const session = await mongoose.startSession();
 
   try {
@@ -202,17 +223,36 @@ class AuthController {
         }
 
 
+     /**
+      * Generate a short-lived JWT access token.
+      * @param userId ID of the admin
+      * @param email Admin email
+      * @param name Admin first name (used in token payload)
+      * @returns Signed JWT access token (1 day expiration)
+      */
      private generateAccessToken(userId: string, email: string, name: string): string {
-        return jwt.sign({ id: userId, email, name }, process.env.JWT_SECRET || 'secret', { expiresIn: '1d' });
+      return jwt.sign({ id: userId, email, name }, process.env.JWT_SECRET || 'secret', { expiresIn: '1d' });
     }
 
+     /**
+      * Generate a longer-lived JWT refresh token.
+      * @param userId ID of the admin
+      * @returns Signed JWT refresh token (7 day expiration)
+      */
      private generateRefreshToken(userId: string): string {
-        return jwt.sign({ id: userId }, process.env.JWT_REFRESH_SECRET || 'refresh_secret', { expiresIn: '7d' });
+      return jwt.sign({ id: userId }, process.env.JWT_REFRESH_SECRET || 'refresh_secret', { expiresIn: '7d' });
     }
 
     
     async login(req: Request, res: Response) {
-        const { email, password } = req.body;
+      /**
+       * Login an admin with email and password.
+       * Validates credentials, checks account state, generates and sends a verification OTP,
+       * and logs the login activity.
+       * @param req Express request containing `email` and `password` in `body`
+       * @param res Express response
+       */
+      const { email, password } = req.body;
 
         try {
             const user = await Admin.findOne({ email: email.toLowerCase() });
@@ -258,7 +298,14 @@ class AuthController {
     }
 
     async refreshToken(req: Request, res: Response) {
-        const { refreshToken } = req.body;
+      /**
+       * Exchange a refresh token for a new access token.
+       * Validates the provided refresh token, ensures it matches the stored token,
+       * and returns a new access token.
+       * @param req Express request containing `refreshToken` in `body`
+       * @param res Express response
+       */
+      const { refreshToken } = req.body;
 
         if (!refreshToken) {
             return res.status(401).json({ message: 'Refresh token is required' });
@@ -289,7 +336,13 @@ class AuthController {
     }
 
     async getProfile(req: Request, res: Response) {
-        const userId = req.admin.id;
+      /**
+       * Get profile information for the authenticated admin.
+       * Uses `req.admin.id` (set by auth middleware) to fetch the admin record.
+       * @param req Express request with `admin.id`
+       * @param res Express response
+       */
+      const userId = req.admin.id;
         try {
             const user = await getOneAdmin(userId, res);
             if (!user) {
@@ -306,6 +359,12 @@ class AuthController {
     }
 
     async updateProfile(req: Request, res: Response) {
+    /**
+     * Update profile fields for the authenticated admin.
+     * Accepts optional fields and persists changes, then logs activity.
+     * @param req Express request with `admin.id` and updated fields in `body`
+     * @param res Express response
+     */
     const userId = req.admin.id;
     const { firstName, lastName, username, appNotifLiveStreamBegins, appNotifLiveStreamEnds, emailNotifLiveStreamBegins, emailNotifLiveStreamEnds } = req.body;
 
@@ -341,7 +400,13 @@ class AuthController {
 }
 
     async forgotPassword(req: Request, res: Response) {
-        const { email, platform } = req.body;
+      /**
+       * Initiate a password reset flow for an admin.
+       * Supports mobile (OTP) and web (token link) flows; sends an email with reset instructions.
+       * @param req Express request containing `email` and optional `platform` in `body`
+       * @param res Express response
+       */
+      const { email, platform } = req.body;
 
         try {
             const user = await Admin.findOne({ email : email.toLowerCase() });
@@ -389,7 +454,14 @@ class AuthController {
     }
 
     async createAdmin(req: Request, res: Response) {
-            const { email, firstName, lastName, role } = req.body;
+    /**
+     * Create a new admin account (by another admin).
+     * Validates input, creates the admin with an initial reset token, sends password-creation email,
+     * and logs the activity under the requesting admin.
+     * @param req Express request containing `email`, `firstName`, `lastName`, `role` in `body`
+     * @param res Express response
+     */
+        const { email, firstName, lastName, role } = req.body;
             try {
             if(!email || !firstName || !lastName || !role) {
                 return res.status(400).json({ message: 'All fields are required' });
@@ -437,8 +509,14 @@ class AuthController {
     }
 
     async resetPassword(req: Request, res: Response) {
-        const { token } = req.params;
-        const { password } = req.body;
+      /**
+       * Complete the password reset flow given a valid reset token.
+       * Hashes and stores the new password, clears reset tokens and activates the account.
+       * @param req Express request with `token` in `params` and `password` in `body`
+       * @param res Express response
+       */
+      const { token } = req.params;
+      const { password } = req.body;
 
         try {
             const user = await Admin.findOne({
@@ -476,6 +554,13 @@ class AuthController {
 
 
 async googleAuth(req: Request, res: Response) {
+  /**
+   * Authenticate or register an admin using Google OAuth token.
+   * Verifies token with Google, creates account on signup path, and returns JWTs.
+   * Uses a mongoose transaction to ensure consistency.
+   * @param req Express request containing `googleauth`, `path` and optional `token` in `body`
+   * @param res Express response
+   */
   const { googleauth, path, token } = req.body;
   const session = await mongoose.startSession();
 
@@ -559,6 +644,13 @@ async googleAuth(req: Request, res: Response) {
 
 
 async appleAuth(req: Request, res: Response) {
+  /**
+   * Authenticate or register an admin using Apple sign-in token.
+   * Verifies the Apple ID token, creates account on signup path, and returns JWTs.
+   * Uses a mongoose transaction to ensure consistency.
+   * @param req Express request containing `id_token`, `path`, and optional `firstName`/`lastName` in `body`
+   * @param res Express response
+   */
   const { id_token, path, firstName, lastName } = req.body;
   const session = await mongoose.startSession();
 
@@ -627,7 +719,12 @@ async appleAuth(req: Request, res: Response) {
 
 
     async logout(req: Request, res: Response) {
-        const userId = req.admin.id;
+      /**
+       * Log out the authenticated admin by clearing the stored refresh token.
+       * @param req Express request with `admin.id`
+       * @param res Express response
+       */
+      const userId = req.admin.id;
         try {
             const user = await Admin.findById(userId);
             if (!user) {
@@ -652,8 +749,14 @@ async appleAuth(req: Request, res: Response) {
     }
 
     async changePassword(req: Request, res: Response) {
-        const userId = req.admin.id;
-        const { oldPassword, newPassword } = req.body;
+      /**
+       * Change the authenticated admin's password.
+       * Verifies the current password before replacing it with a hashed new password.
+       * @param req Express request with `admin.id` and `oldPassword`, `newPassword` in `body`
+       * @param res Express response
+       */
+      const userId = req.admin.id;
+      const { oldPassword, newPassword } = req.body;
 
         try {
             const user = await Admin.findById(userId);
@@ -686,6 +789,11 @@ async appleAuth(req: Request, res: Response) {
     }
 
     async deleteAccount(req: Request, res: Response) {
+    /**
+     * Soft-delete the authenticated admin account by setting `isDeleted`.
+     * @param req Express request with `admin.id`
+     * @param res Express response
+     */
     const userId = req.admin.id;
     try {
         const user = await Admin.findById(userId);
@@ -711,6 +819,13 @@ async appleAuth(req: Request, res: Response) {
 }
 
  async getAllAdmin(req: Request, res: Response) {
+  /**
+   * Get a paginated list of admin accounts with filtering and search support.
+   * Accepts query parameters for paging, filtering (status, verified, locked), date ranges,
+   * sorting, and search. Returns paginated aggregation results.
+   * @param req Express request with query parameters
+   * @param res Express response
+   */
   try {
     const page = Number(req.query.page) || 1;
     const limit = Number(req.query.limit) || 10;
@@ -804,6 +919,12 @@ async appleAuth(req: Request, res: Response) {
 }
 
 async getAdminById(req: Request, res: Response) {
+  /**
+   * Retrieve a single admin's public profile by ID.
+   * Validates the provided ID and returns selected fields from the admin record.
+   * @param req Express request with `id` in `params`
+   * @param res Express response
+   */
   const { id } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -853,6 +974,12 @@ async getAdminById(req: Request, res: Response) {
 }
 
    async lockUser(req: Request, res: Response) {
+   /**
+    * Lock a target admin account (set status to INACTIVE and `locked = true`).
+    * Validates the target ID and logs the action as an admin activity.
+    * @param req Express request with target `id` in `params`
+    * @param res Express response
+    */
      const { id } = req.params;
      if (!mongoose.Types.ObjectId.isValid(id)) {
        return res.status(400).json({ message: 'Invalid user ID' });
@@ -887,6 +1014,12 @@ async getAdminById(req: Request, res: Response) {
    }
 
    async unlockUser(req: Request, res: Response) {
+   /**
+    * Unlock a target admin account (set status to ACTIVE and `locked = false`).
+    * Validates the target ID and logs the action as an admin activity.
+    * @param req Express request with target `id` in `params`
+    * @param res Express response
+    */
      const { id } = req.params;
      if (!mongoose.Types.ObjectId.isValid(id)) {
        return res.status(400).json({ message: 'Invalid user ID' });
@@ -920,8 +1053,15 @@ async getAdminById(req: Request, res: Response) {
      }
    }
 
-   async getAdminActivities(req: Request, res: Response) {
-        const { id } = req.params;
+     async getAdminActivities(req: Request, res: Response) {
+       /**
+        * Get paginated activities for a specific admin.
+        * Supports filtering by component, date ranges, search, and paging parameters.
+        * Returns aggregated activity records with admin details.
+        * @param req Express request with target `id` in `params` and query params for paging/filtering
+        * @param res Express response
+        */
+       const { id } = req.params;
          if (!mongoose.Types.ObjectId.isValid(id)) {
            return res.status(400).json({ message: 'Invalid user ID' });
          }

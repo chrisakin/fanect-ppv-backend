@@ -15,6 +15,13 @@ import Views from '../models/Views';
 import { CreateActivity } from '../services/userActivityService';
 
 class EventController {
+    /**
+     * Create a new event for the authenticated user.
+     * - Validates date/time and required media files, uploads media to S3 and saves the event.
+     * - Expects multipart form-data for `banner`, `watermark`, `trailer` files and a `prices` field.
+     * @param req Express request with event fields in `body` and optional files in `req.files`
+     * @param res Express response with created event
+     */
     async createEvent(req: Request, res: Response) {
         const { name, date, time, description, prices, haveBroadcastRoom, broadcastSoftware, scheduledTestDate } = req.body;
         const userId = req.user.id;
@@ -83,6 +90,12 @@ class EventController {
         }
     }
 
+    /**
+     * Get events created by the authenticated user (paginated).
+     * - Supports `page` and `limit` query params.
+     * @param req Express request with authenticated `user.id`
+     * @param res Express response with paginated events
+     */
     async getEvents(req: Request, res: Response) {
         try {
             const page = Number(req.query.page) || 1;
@@ -104,6 +117,13 @@ class EventController {
     }
 
 
+/**
+ * Get upcoming public events (paginated) that the user can see.
+ * - Filters by date, published status, and optional text `search`.
+ * - Adds `hasStreamPass` flag for the requesting user and filters by event locations.
+ * @param req Express request with optional `page`, `limit`, `search` and user/country context
+ * @param res Express response with paginated upcoming events
+ */
 async getUpcomingEvents(req: Request, res: Response) {
   try {
     const page = Number(req.query.page) || 1;
@@ -260,7 +280,13 @@ async getUpcomingEvents(req: Request, res: Response) {
   }
 }
 
-   async getLiveEvents(req: Request, res: Response) {
+  /**
+   * Get live public events (paginated).
+   * - Includes `hasStreamPass` information for the requesting user and location filtering.
+   * @param req Express request with optional `page`, `limit`, `search` and user/country context
+   * @param res Express response with paginated live events
+   */
+  async getLiveEvents(req: Request, res: Response) {
         try {
     const page = Number(req.query.page) || 1;
     const limit = Number(req.query.limit) || 10;
@@ -413,6 +439,12 @@ async getUpcomingEvents(req: Request, res: Response) {
   }
     }
 
+    /**
+     * Get past public events (paginated).
+     * - Filters by published past events, applies optional `search`, and returns pricing for the user's currency.
+     * @param req Express request with optional `page`, `limit`, `search` and user/country context
+     * @param res Express response with paginated past events
+     */
     async getPastEvents(req: Request, res: Response) {
         try {
     const page = Number(req.query.page) || 1;
@@ -531,6 +563,12 @@ async getUpcomingEvents(req: Request, res: Response) {
   }
     }
 
+    /**
+     * Get detailed information for a single event by ID.
+     * - Includes whether the requesting user has a streampass and picks a price object for the user's currency.
+     * @param req Express request with `params.id` (event id)
+     * @param res Express response with event details
+     */
     async getEventById(req: Request, res: Response) {
   const { id } = req.params;
   const userId = req.user?.id as string; // from auth middleware
@@ -651,6 +689,12 @@ async getUpcomingEvents(req: Request, res: Response) {
   }
 }
 
+    /**
+     * Update an event owned by the authenticated user.
+     * - Validates ownership, optional date/time updates, handles file replacements on S3 and saves changes.
+     * @param req Express request with `params.id`, updated fields in `body`, and optional files in `req.files`
+     * @param res Express response with updated event
+     */
     async updateEvent(req: Request, res: Response) {
         const { id } = req.params;
         const { name, date, time, description, prices, haveBroadcastRoom, broadcastSoftware, scheduledTestDate } = req.body;
@@ -735,6 +779,11 @@ async getUpcomingEvents(req: Request, res: Response) {
         }
     }
 
+    /**
+     * Soft-delete an event owned by the authenticated user and remove related media/IVS resources.
+     * @param req Express request with `params.id` (event id) and authenticated `user.id`
+     * @param res Express response indicating success
+     */
     async deleteEvent(req: Request, res: Response) {
         const { id } = req.params;
         const userId = req.user.id;
@@ -782,6 +831,12 @@ async getUpcomingEvents(req: Request, res: Response) {
         }
     }
 
+    /**
+     * Retrieve the IVS stream key and chat token for a streampass holder.
+     * - Validates streampass ownership, prevents concurrent active sessions, records a view and returns stream/chat credentials.
+     * @param req Express request with `params.eventId` and authenticated `user.id`
+     * @param res Express response with `streamKey`, `chatToken`, and playback information
+     */
     async getStreamKeyForEvent(req: Request, res: Response) {
     const userId = req.user.id;
     const { eventId } = req.params;
@@ -829,6 +884,11 @@ async getUpcomingEvents(req: Request, res: Response) {
 
 
 
+/**
+ * Get the playback URL for a live event for a streampass holder.
+ * @param req Express request with `params.eventId` and authenticated `user.id`
+ * @param res Express response with `playbackUrl`
+ */
 async getPlaybackUrl(req: Request, res: Response) {
     const userId = req.user.id;
     const { eventId } = req.params;
@@ -852,6 +912,12 @@ async getPlaybackUrl(req: Request, res: Response) {
     res.json({ playbackUrl: event.ivsPlaybackUrl });
  }
 
+ /**
+  * Get saved broadcast (replay) URL for a streampass holder when available.
+  * - Ensures the event allows rewatching and records a replay view.
+  * @param req Express request with `params.eventId` and authenticated `user.id`
+  * @param res Express response with `savedBroadcastUrl`
+  */
  async getSavedbroadcastUrl(req: Request, res: Response) {
     const userId = req.user.id;
     const { eventId } = req.params;
@@ -925,6 +991,12 @@ async getPlaybackUrl(req: Request, res: Response) {
 //     res.status(200).send('OK');
 // }
 
+/**
+ * Handle IVS (SNS) webhook notifications.
+ * - Supports SNS subscription confirmation and notification handling for recording/state-change events.
+ * @param req Express request containing SNS message body
+ * @param res Express response acknowledging processing
+ */
 async ivsWebhook(req: Request, res: Response) {
     let message = req.body;
   try {
@@ -974,6 +1046,12 @@ async ivsWebhook(req: Request, res: Response) {
   res.send("OK");
 }
 
+/**
+ * Notify streampass holders about an event status change (started/ended).
+ * - Sends push notifications to users who opted for app notifications and emails to those who opted for email notifications.
+ * @param eventDoc Event document or object containing event details
+ * @param status New event status (e.g., `EventStatus.LIVE` or `EventStatus.PAST`)
+ */
 async notifyEventStatus(eventDoc: any, status: EventStatus) {
     // Find all users with a streampass for this event
     const streampasses = await Streampass.find({ event: eventDoc._id }).populate('user');
@@ -1032,6 +1110,12 @@ async notifyEventStatus(eventDoc: any, status: EventStatus) {
 }
 
 
+/**
+ * Fetch analytics/statistics for a specific event.
+ * - Accepts optional `month` and `currency` query params and returns aggregated analytics.
+ * @param req Express request with `params.eventId` and optional query params
+ * @param res Express response with event analytics
+ */
 async eventStatistics(req: Request, res: Response)  {
   try {
     const { eventId } = req.params;

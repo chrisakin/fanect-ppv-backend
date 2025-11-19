@@ -3,7 +3,19 @@ import WithdrawalDetails from '../models/Withdrawal';
 import { CreateActivity } from '../services/userActivityService';
 import mongoose from 'mongoose';
 
+/**
+ * Controller for managing user withdrawal details.
+ * - Allows users to save bank/withdrawal details and retrieve their saved details.
+ */
 class WithdrawalController {
+    /**
+     * Save withdrawal/bank details for the authenticated user.
+     * - Validates required fields (`accountNumber`, `bankName`, `accountName`).
+     * - Prevents duplicate withdrawal details for the same user.
+     * - Persists a `WithdrawalDetails` document and records a user activity via `CreateActivity`.
+     * @param req Express request. Requires `req.user.id` and `body` containing bank details.
+     * @param res Express response. Returns 201 with the created withdrawal record on success, or 4xx/5xx on error.
+     */
     async saveWithdrawalDetails(req: Request, res: Response) {
         const userId = req.user.id;
         const {
@@ -49,6 +61,12 @@ class WithdrawalController {
         }
     }
 
+    /**
+     * Retrieve the authenticated user's withdrawal details.
+     * - Returns the most recent withdrawal details entry for the user, if any.
+     * @param req Express request. Requires `req.user.id`.
+     * @param res Express response. Returns 200 with the withdrawal details or 5xx on error.
+     */
     async getAllWithdrawalDetails(req: Request, res: Response) {
         const userId = req.user.id;
         try {

@@ -5,7 +5,11 @@ const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
 const stripe = new Stripe(STRIPE_SECRET_KEY, {
     apiVersion: '2025-04-30.basil',
 });
-
+/**
+ * Verifies a Stripe payment by checkout session reference.
+ * @param {string} reference - The Stripe checkout session ID to verify.
+ * @returns {Promise<any>} An object indicating success and payment details if successful.
+ */
 export async function verifyStripePayment(reference: string): Promise<any> {
     try {
         const session = await stripe.checkout.sessions.retrieve(reference);
@@ -35,6 +39,15 @@ export async function verifyStripePayment(reference: string): Promise<any> {
     }
 }
 
+/**
+ * Creates a Stripe checkout session for an event purchase.
+ * @param {string} currency - The currency code (e.g., 'USD').
+ * @param {any} event - The event object (expects name, description, _id).
+ * @param {any} user - The user object (expects id, email).
+ * @param {any} friends - Array of friends (for group purchases).
+ * @param {IPrice} price - The price object for the event.
+ * @returns {Promise<any>} The created Stripe session object.
+ */
 export async function createStripeCheckoutSession(currency: string, event: any, user: any, friends: any, price: IPrice) {
     const session = await stripe.checkout.sessions.create({
         payment_method_types: ['card'],

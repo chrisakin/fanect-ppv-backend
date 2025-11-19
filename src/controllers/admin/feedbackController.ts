@@ -4,8 +4,20 @@ import { paginateAggregate } from '../../services/paginationService';
 import { CreateAdminActivity } from '../../services/userActivityService';
 import Feedback from '../../models/Feedback';
 
+/**
+ * Controller for admin feedback operations.
+ * Contains methods used by admin routes to query and manage feedback records.
+ */
 class feedbackController {
-      async getAllFeedbacks(req: Request, res: Response) {
+  /**
+   * Get paginated feedback records, optionally filtered by event id, date range and search.
+   * - Supports query params: `page`, `limit`, `search`, `startDate`, `endDate`, `sortBy`, `sortOrder`.
+   * - If `params.id` is provided, filters feedbacks to that event only.
+   * - Uses aggregation to join event and user details and returns a paginated result.
+   * @param req Express request containing optional `params.id` and query parameters
+   * @param res Express response returning paginated feedback data
+   */
+  async getAllFeedbacks(req: Request, res: Response) {
           try {
             const id = req.params.id
             const page = Number(req.query.page) || 1;

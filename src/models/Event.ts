@@ -1,5 +1,9 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
+/**
+ * Supported currencies for event pricing.
+ * - Use these codes when creating `prices` for an event to ensure consistent currency handling.
+ */
 export enum Currency {
     USD = 'USD',
     NGN = 'NGN',
@@ -62,6 +66,9 @@ export enum Currency {
   STN = "STN",
 }
 
+/**
+ * Simple price object describing an amount in a specific `Currency`.
+ */
 export interface IPrice {
     currency: Currency;
     amount: number;
@@ -69,6 +76,10 @@ export interface IPrice {
 
 export interface IPriceDocument extends IPrice, Document {}
 
+/**
+ * Mongoose subdocument schema for event prices.
+ * - Stored as an array on the Event document (`prices`).
+ */
 export const PriceSchema = new Schema<IPriceDocument>({
     currency: {
         type: String,
@@ -80,6 +91,11 @@ export const PriceSchema = new Schema<IPriceDocument>({
         required: true,
     },
 });
+
+/**
+ * Interface representing an Event document in the system.
+ * - Contains scheduling, streaming (IVS) metadata, pricing, and administrative fields.
+ */
 export interface IEvent extends Document {
     name: string;
     date: Date;
@@ -115,18 +131,29 @@ export interface IEvent extends Document {
     deletedAt: Date | undefined;
 }
 
+/**
+ * Lifecycle status for an event used by the public-facing flow.
+ */
 export enum EventStatus {
     UPCOMING = 'Upcoming',
     LIVE = 'Live',
     PAST = 'Past'
 }
 
+/**
+ * Administrative review status for events managed by the admin panel.
+ */
 export enum AdminStatus {
     APPROVED = 'Approved',
     PENDING = 'Pending',
     REJECTED = 'Rejected'
 }
 
+/**
+ * Mongoose schema for Event documents.
+ * - Captures event metadata, pricing, streaming/IVS fields, and administrative audit fields.
+ * - Uses timestamps so `createdAt` and `updatedAt` are automatically managed.
+ */
 const EventSchema: Schema = new Schema(
     {
         name: { type: String, required: true },
@@ -178,4 +205,7 @@ const EventSchema: Schema = new Schema(
     { timestamps: true }
 );
 
+/**
+ * Event model exported for CRUD operations and queries against the `events` collection.
+ */
 export default mongoose.model<IEvent>('Event', EventSchema);

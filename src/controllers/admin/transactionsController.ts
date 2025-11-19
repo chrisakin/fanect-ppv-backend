@@ -4,8 +4,19 @@ import Transactions, { TransactionStatus } from '../../models/Transactions';
 import { paginateAggregate } from '../../services/paginationService';
 import { CreateAdminActivity } from '../../services/userActivityService';
 
+/**
+ * Controller for admin transaction operations.
+ * Provides endpoints to list transactions and retrieve transaction statistics.
+ */
 class transactionsController {
-      async getAllTransactions(req: Request, res: Response) {
+  /**
+   * Get paginated transactions with filtering and search support.
+   * - Supports query params: `page`, `limit`, `search`, `status`, `giftStatus`, `paymentMethod`, `currency`, `startDate`, `endDate`, `sortBy`, `sortOrder`.
+   * - Joins event and user details and returns a paginated aggregation result.
+   * @param req Express request containing optional filter and paging query params
+   * @param res Express response with paginated transactions
+   */
+  async getAllTransactions(req: Request, res: Response) {
           try {
             const page = Number(req.query.page) || 1;
             const limit = Number(req.query.limit) || 10;
@@ -141,7 +152,15 @@ class transactionsController {
           }
         }
 
-getTransactionStats = async (req: Request, res: Response) => {
+      /**
+       * Get aggregated transaction statistics.
+       * - Optional `currency` query param can scope stats to one or more currencies (comma separated).
+       * - Returns totals, counts by status, counts by payment method, and gift/non-gift counts.
+       * - If a single currency is provided, `totalAmount` is included; otherwise it's omitted.
+       * @param req Express request with optional `currency` query param
+       * @param res Express response with aggregated statistics
+       */
+      getTransactionStats = async (req: Request, res: Response) => {
   try {
     const currencyFilter = req.query.currency as string | undefined;
 

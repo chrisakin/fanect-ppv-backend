@@ -20,6 +20,15 @@ class AnalyticsController {
     this.getRevenueGrowthData = this.getRevenueGrowthData.bind(this);
   }
   // Dashboard Overview Analytics
+  /**
+   * Get aggregated dashboard overview analytics.
+   * - Accepts `timeframe` and `currency` as query params.
+   * - Runs several analytics queries in parallel and returns summarized data
+   *   including user/event/revenue/engagement stats, recent activity, top events
+   *   and chart data for growth metrics.
+   * @param req Express request with optional `timeframe` and `currency` query params
+   * @param res Express response with overview analytics payload
+   */
   getDashboardOverview = async (req: Request, res: Response) => {
     try {
       const { timeframe = '30d', currency } = req.query;
@@ -106,7 +115,14 @@ class AnalyticsController {
   }
 
   // Detailed Analytics Page
-   getDetailedAnalytics = async (req: Request, res: Response) => {
+    /**
+     * Get detailed analytics for a given date range and filters.
+     * - Accepts `startDate`, `endDate`, `currency`, `eventStatus`, `userStatus` in query.
+     * - Returns platform, financial, user, event, engagement, geographic and performance metrics.
+     * @param req Express request with query params for date range and filters
+     * @param res Express response with detailed analytics payload
+     */
+    getDetailedAnalytics = async (req: Request, res: Response) => {
     try {
       const { 
         startDate: queryStartDate, 
@@ -169,7 +185,12 @@ class AnalyticsController {
     }
   }
 
-   async getUserStats(startDate: Date) {
+  /**
+   * Compute user-related summary statistics since `startDate`.
+   * Returns totals, new users, active users, verified users and verification rate.
+   * @param startDate Date to use as lower bound for new/active user calculations
+   */
+  async getUserStats(startDate: Date) {
     const [totalUsers, newUsers, activeUsers, verifiedUsers] = await Promise.all([
       User.countDocuments({ isDeleted: { $ne: true } }),
       User.countDocuments({ 
@@ -195,7 +216,12 @@ class AnalyticsController {
     };
   }
 
-   async getEventStats(startDate: Date) {
+  /**
+   * Compute event-related summary statistics since `startDate`.
+   * Returns totals, new events, live events, approved events and approval rate.
+   * @param startDate Date to use as lower bound for new event calculations
+   */
+  async getEventStats(startDate: Date) {
     const [totalEvents, newEvents, liveEvents, approvedEvents] = await Promise.all([
       Event.countDocuments({ isDeleted: { $ne: true } }),
       Event.countDocuments({ 
@@ -221,7 +247,13 @@ class AnalyticsController {
     };
   }
 
-   async getRevenueStats(startDate: Date, currencyFilter: any) {
+  /**
+   * Compute revenue statistics since `startDate` optionally filtered by currency.
+   * Aggregates total revenue, number of transactions, average transaction and gift-related transactions.
+   * @param startDate Date to use as lower bound for revenue calculations
+   * @param currencyFilter Optional filter object (e.g. `{ currency: 'USD' }`)
+   */
+  async getRevenueStats(startDate: Date, currencyFilter: any) {
     const pipeline = [
       {
         $match: {
@@ -254,7 +286,12 @@ class AnalyticsController {
     };
   }
 
-   async getEngagementStats(startDate: Date) {
+  /**
+   * Compute engagement statistics since `startDate`.
+   * Returns total views, streampasses sold, feedback counts and average rating.
+   * @param startDate Date to use as lower bound for engagement calculations
+   */
+  async getEngagementStats(startDate: Date) {
     const [totalViews, totalStreampassesSold, totalFeedbacks] = await Promise.all([
       Views.countDocuments({ createdAt: { $gte: startDate } }),
       Streampass.countDocuments({ createdAt: { $gte: startDate } }),
@@ -274,7 +311,11 @@ class AnalyticsController {
     };
   }
 
-   async getRecentActivity() {
+  /**
+   * Fetch recent events and users for quick activity preview.
+   * Returns up to 5 most recent events and 5 most recent users.
+   */
+  async getRecentActivity() {
     const recentEvents = await Event.find({ isDeleted: { $ne: true } })
       .sort({ createdAt: -1 })
       .limit(5)
@@ -292,6 +333,10 @@ class AnalyticsController {
     };
   }
 
+  /**
+   * Compute current view counts for live events.
+   * Returns top events by current view count and the total current views across live events.
+   */
   async getCurrentViewCount() {
   const currentViewCount = await Event.aggregate([
     {
@@ -334,7 +379,13 @@ class AnalyticsController {
 }
 
 
-   async getTopEvents(startDate: Date, currencyFilter: any) {
+  /**
+   * Return top events by revenue since `startDate`, optionally filtered by currency.
+   * Each event includes computed revenue and view counts; only events with revenue > 0 are returned.
+   * @param startDate Date lower bound for revenue calculations
+   * @param currencyFilter Optional currency filter object
+   */
+  async getTopEvents(startDate: Date, currencyFilter: any) {
     const pipeline: any = [
       {
         $lookup: {
@@ -402,7 +453,12 @@ class AnalyticsController {
     return await Event.aggregate(pipeline);
   }
 
-   async getUserGrowthData(startDate: Date) {
+  /**
+   * Produce user growth time series starting from `startDate`.
+   * Aggregates new user counts per day.
+   * @param startDate Date lower bound for growth aggregation
+   */
+  async getUserGrowthData(startDate: Date) {
     const pipeline: any = [
       {
         $match: {
@@ -426,7 +482,13 @@ class AnalyticsController {
     return await User.aggregate(pipeline);
   }
 
-   async getRevenueGrowthData(startDate: Date, currencyFilter: any) {
+  /**
+   * Produce revenue growth time series starting from `startDate`.
+   * Aggregates daily revenue and transaction counts.
+   * @param startDate Date lower bound for revenue aggregation
+   * @param currencyFilter Optional currency filter object
+   */
+  async getRevenueGrowthData(startDate: Date, currencyFilter: any) {
     const pipeline: any = [
       {
         $match: {
@@ -453,7 +515,12 @@ class AnalyticsController {
   }
 
   // Helper methods for detailed analytics
-   async getPlatformMetrics(startDate: Date, endDate: Date) {
+  /**
+   * Platform-level metrics for a date range: totals for users, events, transactions and revenue.
+   * @param startDate Range start date
+   * @param endDate Range end date
+   */
+  async getPlatformMetrics(startDate: Date, endDate: Date) {
     const [
       totalUsers,
       totalEvents,
@@ -495,7 +562,14 @@ class AnalyticsController {
     };
   }
 
-   async getFinancialMetrics(startDate: Date, endDate: Date, currencyFilter: any) {
+  /**
+   * Financial metrics for a date range, including transaction status breakdown
+   * and payment method breakdown. Supports optional currency filtering.
+   * @param startDate Range start date
+   * @param endDate Range end date
+   * @param currencyFilter Optional currency filter object
+   */
+  async getFinancialMetrics(startDate: Date, endDate: Date, currencyFilter: any) {
     const pipeline = [
       {
         $match: {
@@ -536,7 +610,14 @@ class AnalyticsController {
     };
   }
 
-   async getUserMetrics(startDate: Date, endDate: Date, userStatusFilter: any) {
+  /**
+   * User metrics for a date range, optionally filtered by user status.
+   * Returns counts for total, verified, active, and locked users.
+   * @param startDate Range start date
+   * @param endDate Range end date
+   * @param userStatusFilter Optional filter for user status
+   */
+  async getUserMetrics(startDate: Date, endDate: Date, userStatusFilter: any) {
     const userStats = await User.aggregate([
       {
         $match: {
@@ -565,7 +646,14 @@ class AnalyticsController {
     return userStats[0] || { total: 0, verified: 0, active: 0, locked: 0 };
   }
 
-   async getEventMetrics(startDate: Date, endDate: Date, eventStatusFilter: any) {
+  /**
+   * Event metrics for a date range, optionally filtered by event admin status.
+   * Returns totals and counts by adminStatus and live status.
+   * @param startDate Range start date
+   * @param endDate Range end date
+   * @param eventStatusFilter Optional filter for event status
+   */
+  async getEventMetrics(startDate: Date, endDate: Date, eventStatusFilter: any) {
     const eventStats = await Event.aggregate([
       {
         $match: {
@@ -597,7 +685,12 @@ class AnalyticsController {
     return eventStats[0] || { total: 0, approved: 0, pending: 0, rejected: 0, live: 0 };
   }
 
-   async getEngagementMetrics(startDate: Date, endDate: Date) {
+  /**
+   * Engagement metrics for a date range: view types distribution and feedback ratings distribution.
+   * @param startDate Range start date
+   * @param endDate Range end date
+   */
+  async getEngagementMetrics(startDate: Date, endDate: Date) {
     const [viewStats, feedbackStats] = await Promise.all([
       Views.aggregate([
         {
@@ -633,6 +726,12 @@ class AnalyticsController {
     };
   }
 
+   /**
+    * Get geographic analytics. Currently not implemented because location tracking
+    * is not available; returns a placeholder message.
+    * @param startDate Range start date
+    * @param endDate Range end date
+    */
    async getGeographicData(startDate: Date, endDate: Date) {
     // This would require storing user location data
     // For now, return placeholder data
@@ -641,6 +740,13 @@ class AnalyticsController {
     };
   }
 
+   /**
+    * Performance metrics for a date range: conversion rate and average session duration.
+    * Conversion rate is computed from users vs purchasing users; session duration requires
+    * session tracking and currently returns a placeholder when not implemented.
+    * @param startDate Range start date
+    * @param endDate Range end date
+    */
    async getPerformanceMetrics(startDate: Date, endDate: Date) {
     const conversionRate = await this.calculateConversionRate(startDate, endDate);
     const averageSessionDuration = await this.calculateAverageSessionDuration(startDate, endDate);
@@ -651,6 +757,14 @@ class AnalyticsController {
     };
   }
 
+   /**
+    * Calculate conversion rate (percentage) for the given date range.
+    * - totalUsers: users created in the range (excluding deleted)
+    * - purchasingUsers: distinct users who purchased streampasses in the range
+    * @param startDate Range start date
+    * @param endDate Range end date
+    * @returns Conversion rate as a percentage string or numeric 0 when not applicable
+    */
    async calculateConversionRate(startDate: Date, endDate: Date) {
     const [totalUsers, purchasingUsers] = await Promise.all([
       User.countDocuments({
@@ -665,6 +779,13 @@ class AnalyticsController {
     return totalUsers > 0 ? (purchasingUsers / totalUsers * 100).toFixed(2) : 0;
   }
 
+   /**
+    * Calculate average session duration for the given date range.
+    * Currently returns a placeholder because session tracking is not implemented.
+    * @param startDate Range start date
+    * @param endDate Range end date
+    * @returns Average session duration or placeholder string
+    */
    async calculateAverageSessionDuration(startDate: Date, endDate: Date) {
     // This would require session tracking
     // Return placeholder for now

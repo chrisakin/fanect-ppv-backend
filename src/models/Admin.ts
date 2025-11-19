@@ -1,15 +1,28 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
+/**
+ * Roles available for admin users.
+ * - `SUPERADMIN`: full access to admin features.
+ * - `ASSISTANT`: limited/assistant-level access.
+ */
 export enum AdminRolesEnum {
     SUPERADMIN = "Super Admin",
     ASSISTANT = "Assistant"
 }
 
-
+/**
+ * Possible lifecycle statuses for an admin account.
+ */
 export enum AdminStatus {
     ACTIVE = 'Active',
     INACTIVE = 'Inactive',
 }
+
+/**
+ * Interface representing an Admin document.
+ * - Includes authentication fields (email, password, refresh/reset tokens),
+ *   notification preferences, device tokens, role/permissions, and metadata.
+ */
 export interface IAdmin extends Document {
     email: string;
     password: string;
@@ -35,6 +48,10 @@ export interface IAdmin extends Document {
     status?: AdminStatus;
 }
 
+/**
+ * Mongoose schema defining the Admin document structure and defaults.
+ * - Uses timestamps so `createdAt` and `updatedAt` are managed automatically.
+ */
 const AdminSchema: Schema = new Schema({
     email: { type: String, required: true },
     password: { type: String },
@@ -63,4 +80,7 @@ const AdminSchema: Schema = new Schema({
 },
 { timestamps: true });
 
+/**
+ * Admin model used to perform CRUD operations on admin accounts.
+ */
 export default mongoose.model<IAdmin>('Admin', AdminSchema);

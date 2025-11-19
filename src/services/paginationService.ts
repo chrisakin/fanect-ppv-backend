@@ -15,6 +15,16 @@ interface PaginationResult<T> {
     limit: number;
 }
 
+/**
+ * Paginates results from a Mongoose find query.
+ * @template T
+ * @param {Model<T>} model - The Mongoose model to query.
+ * @param {any} query - The MongoDB query object.
+ * @param {PaginationOptions} [options={}] - Pagination options (page, limit).
+ * @param {any} [projection={}] - Fields to include or exclude.
+ * @param {any} [sort={}] - Sort order for the results.
+ * @returns {Promise<PaginationResult<T>>} Paginated result object.
+ */
 export async function paginateFind<T>(
     model: Model<T>,
     query: any,
@@ -43,6 +53,14 @@ export async function paginateFind<T>(
     };
 }
 
+/**
+ * Paginates results from a Mongoose aggregation pipeline.
+ * @template T
+ * @param {Model<T>} model - The Mongoose model to aggregate.
+ * @param {PipelineStage[]} pipeline - The aggregation pipeline stages.
+ * @param {PaginationOptions} [options={}] - Pagination options (page, limit).
+ * @returns {Promise<PaginationResult<T>>} Paginated result object.
+ */
 export async function paginateAggregate<T>(
     model: Model<T>,
     pipeline: PipelineStage[],

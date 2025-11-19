@@ -15,6 +15,12 @@ import { CreateActivity } from '../services/userActivityService';
 
 const client = new OAuth2Client(process.env.GOOGLE_LOGIN_CLIENT_ID);
 
+/**
+ * Controller responsible for user authentication and profile management.
+ * Contains methods for registration, login, social auth (Google/Apple),
+ * password reset flows, profile updates, and helper methods for token generation
+ * and conversion of gifted streampasses/gifts to user-owned records.
+ */
 class AuthController {
     constructor() {
         this.register = this.register.bind(this);
@@ -34,6 +40,13 @@ class AuthController {
         this.getGiftsAndUpdateStreamPass = this.getGiftsAndUpdateStreamPass.bind(this)
     }
 
+    /**
+     * Register a new user.
+     * - Validates required fields, checks for existing users, hashes the password,
+     *   creates the user record, sends verification email and logs the activity.
+     * @param req Express request containing `email`, `password`, `firstName`, `lastName`, `userName` in body
+     * @param res Express response
+     */
     async register(req: Request, res: Response) {
         const { email, password, firstName, lastName, userName } = req.body;
 
@@ -89,6 +102,13 @@ class AuthController {
     }
 
     async resendOtp(req: Request, res: Response) {
+        /**
+         * Resend the email verification OTP to a user.
+         * - Looks up the user by email, ensures account exists and is not deleted/verified,
+         *   generates a new OTP, saves it and sends the verification email.
+         * @param req Express request containing `email` in body
+         * @param res Express response
+         */
         const { email } = req.body;
     
         try {
@@ -133,6 +153,13 @@ class AuthController {
         }
     }
 
+        /**
+         * Verify a user's email using a one-time code (OTP).
+         * - Uses a mongoose transaction to atomically convert any gifted streampasses/gifts,
+         *   mark the user as verified, create session/refresh tokens and return them.
+         * @param req Express request containing `email` and `code` in body
+         * @param res Express response with access and refresh tokens
+         */
         async verifyEmail(req: Request, res: Response) {
   const { email, code } = req.body;
   const session = await mongoose.startSession();
@@ -201,16 +228,35 @@ class AuthController {
         }
 
 
+     /**
+      * Generate a signed JWT access token (short-lived).
+      * @param userId ID of the user
+      * @param email User email
+      * @param name User first name (included in token payload)
+      * @returns Signed JWT access token string
+      */
      private generateAccessToken(userId: string, email: string, name: string): string {
         return jwt.sign({ id: userId, email, name }, process.env.JWT_SECRET || 'secret', { expiresIn: '1d' });
     }
 
+     /**
+      * Generate a signed JWT refresh token (longer-lived).
+      * @param userId ID of the user
+      * @returns Signed JWT refresh token string
+      */
      private generateRefreshToken(userId: string): string {
         return jwt.sign({ id: userId }, process.env.JWT_REFRESH_SECRET || 'refresh_secret', { expiresIn: '7d' });
     }
 
     
     async login(req: Request, res: Response) {
+        /**
+         * Authenticate a user with email and password.
+         * - Validates credentials, checks account state (deleted/locked/verified),
+         *   issues access and refresh tokens and records a session token.
+         * @param req Express request with `email` and `password` in body
+         * @param res Express response with tokens on success
+         */
         const { email, password } = req.body;
         const sessionToken = uuidv4();
         try {
@@ -275,6 +321,12 @@ class AuthController {
     }
 
     async refreshToken(req: Request, res: Response) {
+        /**
+         * Exchange a refresh token for a new access token.
+         * - Validates the refresh token, ensures it matches the stored token, and returns a new access token.
+         * @param req Express request containing `refreshToken` in body
+         * @param res Express response with new access token
+         */
         const { refreshToken } = req.body;
 
         if (!refreshToken) {
@@ -306,6 +358,12 @@ class AuthController {
     }
 
     async getProfile(req: Request, res: Response) {
+        /**
+         * Retrieve the authenticated user's profile.
+         * - Uses `req.user.id` populated by authentication middleware.
+         * @param req Express request with authenticated `user.id`
+         * @param res Express response with user profile
+         */
         const userId = req.user.id;
         try {
             const user = await getOneUser(userId, res);
@@ -323,6 +381,12 @@ class AuthController {
     }
 
     async updateProfile(req: Request, res: Response) {
+    /**
+     * Update profile fields for the authenticated user.
+     * - Accepts optional fields and persists changes, then logs activity.
+     * @param req Express request with authenticated `user.id` and updated fields in body
+     * @param res Express response
+     */
     const userId = req.user.id;
     const { firstName, lastName, username, appNotifLiveStreamBegins, appNotifLiveStreamEnds, emailNotifLiveStreamBegins, emailNotifLiveStreamEnds } = req.body;
 
@@ -358,6 +422,12 @@ class AuthController {
 }
 
     async forgotPassword(req: Request, res: Response) {
+        /**
+         * Initiate a password reset flow for a user.
+         * - Supports mobile (OTP) and web (token link) flows; sends an email with reset instructions.
+         * @param req Express request containing `email` and optional `platform` in body
+         * @param res Express response
+         */
         const { email, platform } = req.body;
 
         try {
@@ -406,6 +476,12 @@ class AuthController {
     }
 
     async resetPassword(req: Request, res: Response) {
+        /**
+         * Complete the password reset given a valid reset token.
+         * - Hashes and stores the new password, clears reset tokens and logs the activity.
+         * @param req Express request with `params.token` and `body.password`
+         * @param res Express response
+         */
         const { token } = req.params;
         const { password } = req.body;
 
@@ -440,6 +516,11 @@ class AuthController {
         }
     }
 
+    /**
+     * Get platform-specific Google client ID for token verification.
+     * @param platform Optional platform string ('android'|'ios'|undefined)
+     * @returns Google client ID string for the given platform
+     */
     getGoogleClientId(platform: string) {
     if (platform === 'android') return process.env.ANDROID_GOOGLE_LOGIN_CLIENT_ID;
     if (platform === 'ios') return process.env.IOS_GOOGLE_LOGIN_CLIENT_ID;
@@ -447,8 +528,15 @@ class AuthController {
     }
 
 
+/**
+ * Authenticate or register a user using Google OAuth.
+ * - Verifies the Google ID token, optionally creates a new user on `signup` path,
+ *   converts gifted streampasses/gifts and returns access/refresh tokens.
+ * @param req Express request containing `googleauth`, `path`, optional `platform` and `token` in body
+ * @param res Express response with tokens on success
+ */
 async googleAuth(req: Request, res: Response) {
-  const { googleauth, path, token, platform } = req.body;
+    const { googleauth, path, token, platform } = req.body;
   const session = await mongoose.startSession();
   const sessionToken = uuidv4();
   try {
@@ -537,8 +625,15 @@ async googleAuth(req: Request, res: Response) {
 
 
 
+/**
+ * Authenticate or register a user using Apple sign-in token.
+ * - Verifies the Apple ID token, optionally creates a new user on `signup` path,
+ *   converts gifted streampasses/gifts and returns access/refresh tokens.
+ * @param req Express request containing `id_token`, `path`, and optional `firstName`/`lastName` in body
+ * @param res Express response with tokens on success
+ */
 async appleAuth(req: Request, res: Response) {
-  const { id_token, path, firstName, lastName } = req.body;
+    const { id_token, path, firstName, lastName } = req.body;
   const session = await mongoose.startSession();
   const sessionToken = uuidv4();
 
@@ -612,6 +707,11 @@ async appleAuth(req: Request, res: Response) {
 
 
     async logout(req: Request, res: Response) {
+        /**
+         * Log out the authenticated user by clearing stored refresh and session tokens.
+         * @param req Express request containing authenticated `user.id`
+         * @param res Express response
+         */
         const userId = req.user.id;
         try {
             const user = await User.findById(userId);
@@ -638,6 +738,12 @@ async appleAuth(req: Request, res: Response) {
     }
 
     async changePassword(req: Request, res: Response) {
+        /**
+         * Change the authenticated user's password.
+         * - Verifies the current password before replacing it with a hashed new password.
+         * @param req Express request with `user.id` and `oldPassword`, `newPassword` in body
+         * @param res Express response
+         */
         const userId = req.user.id;
         const { oldPassword, newPassword } = req.body;
 
@@ -672,6 +778,11 @@ async appleAuth(req: Request, res: Response) {
     }
 
     async deleteAccount(req: Request, res: Response) {
+    /**
+     * Soft-delete the authenticated user's account by setting `isDeleted`.
+     * @param req Express request with authenticated `user.id`
+     * @param res Express response
+     */
     const userId = req.user.id;
     try {
         const user = await User.findById(userId);
@@ -696,6 +807,14 @@ async appleAuth(req: Request, res: Response) {
     }
 }
 
+/**
+ * Convert gifts and streampasses associated with an email to the newly verified user.
+ * - Marks matching gifts/streampasses as converted and assigns them to the provided userId within the provided session.
+ * @param email Email address used for the gift/streampass
+ * @param userId ID of the user to assign converted items to
+ * @param session Mongoose session used for transactional updates
+ * @returns Object containing counts of modified gifts and streampasses
+ */
 async getGiftsAndUpdateStreamPass(email: string, userId: string, session: any) {
   try {
     const [giftResult, streampassResult] = await Promise.all([

@@ -5,8 +5,20 @@ import { CreateAdminActivity } from "../../services/userActivityService";
 import { Request, Response } from 'express';
 import Event, { AdminStatus, EventStatus } from "../../models/Event";
 
+/**
+ * Controller for admin-facing organiser operations.
+ * Provides endpoints to list organisers, fetch events created by a specific organiser,
+ * and compute organiser-specific analytics.
+ */
 class organisersController {
     
+/**
+ * Retrieve a paginated list of organisers (users who have created events).
+ * - Supports query params: `page`, `limit`, `search`, `status`, `verified`, `locked`, `startDate`, `endDate`, `sortBy`, `sortOrder`.
+ * - Aggregates events by `createdBy`, joins user data and returns a paginated list with event counts.
+ * @param req Express request (optional query parameters and auth `admin.id`)
+ * @param res Express response containing paginated organisers
+ */
 async getAllOrganisers(req: Request, res: Response) {
   try {
     const page = Number(req.query.page) || 1;
@@ -154,6 +166,13 @@ async getAllOrganisers(req: Request, res: Response) {
 
 
 
+/**
+ * Fetch events created by a specific organiser (user).
+ * - Validates organiser id, supports paging, search, date range and event status filters.
+ * - Returns paginated events created by the provided user id.
+ * @param req Express request with `params.id` (organiser id) and optional query params
+ * @param res Express response with paginated events
+ */
 async  getEventsCreatedByOrganiser(req: Request, res: Response) {
   const { id } = req.params;
 
@@ -258,6 +277,13 @@ async  getEventsCreatedByOrganiser(req: Request, res: Response) {
   }
 }
 
+/**
+ * Compute analytics for a specific organiser across all their events.
+ * - Validates organiser id and aggregates event, revenue, engagement and rating metrics.
+ * - Supports optional `month` and `currency` query params to scope financial metrics.
+ * @param req Express request with `params.id` (organiser id) and optional `month`/`currency` query params
+ * @param res Express response with organiser analytics object
+ */
 async getOrganiserAnalytics(req: Request, res: Response) {
   const { id } = req.params;
   const { month: selectedMonth, currency: selectedCurrency } = req.query;

@@ -3,6 +3,11 @@ import { IEvent, IPrice } from '../models/Event';
 
 const FLUTTERWAVE_SECRET_KEY = process.env.FLUTTERWAVE_SECRET_KEY;
 
+/**
+ * Verifies a Flutterwave payment by transaction reference.
+ * @param {string} reference - The transaction reference to verify.
+ * @returns {Promise<any>} An object indicating success and payment details if successful.
+ */
 export async function verifyFlutterwavePayment(reference: string): Promise<any> {
     try {
         const response = await axios.get(
@@ -44,10 +49,24 @@ export async function verifyFlutterwavePayment(reference: string): Promise<any> 
     }
 }
 
+/**
+ * Generates a unique transaction reference for Flutterwave payments.
+ * @param {string} [prefix="FANECT"] - Optional prefix for the transaction reference.
+ * @returns {string} The generated transaction reference.
+ */
 export function generateTxRef(prefix = "FANECT"): string {
   return `${prefix}_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
 }
 
+/**
+ * Initializes a Flutterwave payment session for an event.
+ * @param {any} event - The event object.
+ * @param {string} currency - The currency code (e.g., 'NGN').
+ * @param {any} user - The user object (must have email and name).
+ * @param {Array} friends - Array of friends (for group payments).
+ * @param {IPrice} price - The price object for the event.
+ * @returns {Promise<any>} The response from Flutterwave API.
+ */
 export async function flutterwaveInitialization(event: any, currency: string, user: any, friends: [], price: IPrice) {
     const response = await axios.post('https://api.flutterwave.com/v3/payments', {
         tx_ref: generateTxRef(),
@@ -70,6 +89,12 @@ export async function flutterwaveInitialization(event: any, currency: string, us
     return response
 }
 
+/**
+ * Retrieves all banks for a given country from Flutterwave.
+ * @param {string} [country='NG'] - The country code (default is 'NG').
+ * @returns {Promise<any>} The list of banks from Flutterwave.
+ * @throws {Error} If unable to fetch banks.
+ */
 export async function getAllBanks(country: string = 'NG') {
     try {
         const response = await axios.get(
@@ -91,6 +116,13 @@ export async function getAllBanks(country: string = 'NG') {
     }
 }
 
+/**
+ * Resolves a bank account using Flutterwave's API.
+ * @param {string} account_number - The account number to resolve.
+ * @param {string} bank_code - The bank code for the account.
+ * @returns {Promise<any>} The resolved account details from Flutterwave.
+ * @throws {Error} If unable to resolve the bank account.
+ */
 export async function resolveBankAccount(account_number: string, bank_code: string) {
     try {
         const response = await axios.get(

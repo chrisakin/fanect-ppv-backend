@@ -19,6 +19,13 @@ class EventController {
         this.updateEventSession = this.updateEventSession.bind(this)
         this.notifyEventStatus = this.notifyEventStatus.bind(this)
     }
+  /**
+   * Approve and publish an event.
+   * - Creates IVS channel/chat resources, generates stream keys and marks the event as published and approved.
+   * - Sends an email to the event creator and records an admin activity.
+   * @param req Express request with `params.id` for the event and `admin.id` from auth middleware
+   * @param res Express response
+   */
   async approveEvent(req: Request, res: Response) {
         const { id } = req.params;
 
@@ -70,6 +77,12 @@ class EventController {
         }
     }
 
+    /**
+     * Publish an event without creating IVS resources.
+     * Marks `published=true` and records an admin activity.
+     * @param req Express request with `params.id`
+     * @param res Express response
+     */
     async publishEvent(req: Request, res: Response) {
         const { id } = req.params;
         try {
@@ -95,6 +108,11 @@ class EventController {
         }
     }
 
+    /**
+     * Retrieve locations associated with an event.
+     * @param req Express request with `params.id` for the event
+     * @param res Express response containing `locations`
+     */
     async getEventLocations(req: Request, res: Response) {
       const { id } = req.params;
       try {
@@ -110,6 +128,12 @@ class EventController {
         }
     }
 
+      /**
+       * Add/update locations for an event via bulk insert.
+       * Expects an array of location objects in the request body.
+       * @param req Express request with `params.id` and array body
+       * @param res Express response
+       */
       async updateEventLocations(req: Request, res: Response) {
         const { id } = req.params;
         try {
@@ -133,6 +157,11 @@ class EventController {
         }
     }
 
+      /**
+       * Remove a single event location by its id.
+       * @param req Express request with `params.id` for the location
+       * @param res Express response
+       */
       async removeEventLocations(req: Request, res: Response) {
         const { id } = req.params;
         try {
@@ -150,6 +179,11 @@ class EventController {
         }
       }
 
+    /**
+     * Unpublish an event (soft unpublish) and record the admin who unpublished it.
+     * @param req Express request with `params.id`
+     * @param res Express response
+     */
     async unpublishEvent(req: Request, res: Response) {
         const { id } = req.params;
 
@@ -175,6 +209,11 @@ class EventController {
         }
     }
 
+       /**
+        * Reject an event, set rejection reason, notify the creator by email and record activity.
+        * @param req Express request with `params.id` and `body.rejectionReason`
+        * @param res Express response
+        */
        async rejectEvent(req: Request, res: Response) {
         const { id } = req.params;
         const { rejectionReason } = req.body
@@ -210,9 +249,16 @@ class EventController {
         }
     }
 
+    /**
+     * Update the session state of an event (start/end stream).
+     * - Validates event state and admin approval, then toggles `status` between LIVE and PAST.
+     * - Broadcasts SSE updates, notifies streampass holders and records admin activity.
+     * @param req Express request with `params.id` and `body.session` ('stream-start'|'stream-end')
+     * @param res Express response
+     */
     async updateEventSession(req: Request, res: Response) {
-   const { id } = req.params;
-   const { session } = req.body
+     const { id } = req.params;
+     const { session } = req.body
 
         try {
             const event = await Event.findById(id);
@@ -268,6 +314,12 @@ class EventController {
         }
 }
 
+/**
+ * Get a paginated list of events with filtering, search and date-range support.
+ * Accepts query params for page/limit/search/status/adminStatus/startDate/endDate/sortBy/sortOrder.
+ * @param req Express request with query params
+ * @param res Express response with paginated events
+ */
 async getAllEvents(req: Request, res: Response) {
   try {
     const page = Number(req.query.page) || 1;
@@ -367,6 +419,12 @@ async getAllEvents(req: Request, res: Response) {
   }
 }
 
+/**
+ * Get a single event by ID, populating creator and publisher details.
+ * Validates the event ID and returns 404 if not found.
+ * @param req Express request with `params.id`
+ * @param res Express response with the event
+ */
 async getEventById(req: Request, res: Response) {
   const { id } = req.params;
   if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -398,6 +456,13 @@ async getEventById(req: Request, res: Response) {
   }
 }
 
+ /**
+  * Soft-delete an event and associated media resources.
+  * - Marks the event as deleted, removes related S3 files and deletes IVS channel if present.
+  * - Records admin activity and returns success status.
+  * @param req Express request with `params.id` and `admin.id`
+  * @param res Express response
+  */
  async deleteEvent(req: Request, res: Response) {
         const { id } = req.params;
         const userId = req.admin.id;
@@ -442,6 +507,13 @@ async getEventById(req: Request, res: Response) {
         }
     }
 
+/**
+ * Generate a revenue report for a specific event.
+ * - Aggregates successful transactions and streampass counts by currency.
+ * - Returns an array of currency-level revenue and streampass totals.
+ * @param req Express request with `params.id` for the event
+ * @param res Express response with revenue data
+ */
 async getRevenueReport(req: Request, res: Response) {
   const { id } = req.params;
   if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -534,6 +606,13 @@ async getRevenueReport(req: Request, res: Response) {
 }
 
 
+/**
+ * Toggle whether saved broadcasts can be watched for an event.
+ * - Expects `body.canWatchSavedStream` boolean and updates the event accordingly.
+ * - Records the admin activity and returns the updated event.
+ * @param req Express request with `params.id` and `body.canWatchSavedStream`
+ * @param res Express response
+ */
 async toggleSaveStream(req: Request, res: Response) {
   const { id } = req.params;
   const { canWatchSavedStream } = req.body;
@@ -573,6 +652,12 @@ async toggleSaveStream(req: Request, res: Response) {
   }
 }
 
+/**
+ * Get paginated transactions for a single event with filtering and search.
+ * - Supports status, gift status, payment method, currency filter, date range and free-text search.
+ * @param req Express request with `params.id` and query params for paging/filtering
+ * @param res Express response with paginated transactions
+ */
 async getSingleEventTransactions(req: Request, res: Response) {
           try {
             const id = req.params.id
@@ -709,9 +794,15 @@ async getSingleEventTransactions(req: Request, res: Response) {
           }
         }
 
+/**
+ * Get metrics for a single event using the analytics service.
+ * - Accepts optional `month` and `currency` query params to scope the metrics.
+ * @param req Express request with `params.id` and optional query params
+ * @param res Express response with event metrics
+ */
 async getSingleEventMetrics(req: Request, res: Response) {
-   const { id } = req.params;
-    const { month: selectedMonth, currency: selectedCurrency } = req.query;
+  const { id } = req.params;
+   const { month: selectedMonth, currency: selectedCurrency } = req.query;
   try {
     if (!mongoose.Types.ObjectId.isValid(id)) {
     return res.status(400).json({ message: 'Invalid event ID' });
@@ -738,9 +829,16 @@ async getSingleEventMetrics(req: Request, res: Response) {
   }
 }
 
+/**
+ * Create a new event.
+ * - Validates date/time and required media files, uploads media to S3 and saves the event.
+ * - Expects multipart form-data for banner/watermark/trailer files and a `prices` field.
+ * @param req Express request with event fields in `body` and optional files in `req.files`
+ * @param res Express response with created event
+ */
 async createEvent(req: Request, res: Response) {
-        const { name, date, time, description, prices, haveBroadcastRoom, broadcastSoftware, scheduledTestDate } = req.body;
-        const userId = req.admin.id;
+  const { name, date, time, description, prices, haveBroadcastRoom, broadcastSoftware, scheduledTestDate } = req.body;
+  const userId = req.admin.id;
         let price
         if(!prices ) {
            return res.status(400).json({ message: 'At least one price is required' });
@@ -806,10 +904,17 @@ async createEvent(req: Request, res: Response) {
         }
     }
 
-     async updateEvent(req: Request, res: Response) {
-            const { id } = req.params;
-            const { name, date, time, description, prices, haveBroadcastRoom, broadcastSoftware, scheduledTestDate } = req.body;
-            const userId = req.admin.id;
+         /**
+          * Update an existing event.
+          * - Validates optionally-updated date/time, handles file replacements on S3 and saves changes.
+          * - Records admin activity on success.
+          * @param req Express request with `params.id`, updated fields in `body`, and optional files in `req.files`
+          * @param res Express response with updated event
+          */
+         async updateEvent(req: Request, res: Response) {
+           const { id } = req.params;
+           const { name, date, time, description, prices, haveBroadcastRoom, broadcastSoftware, scheduledTestDate } = req.body;
+           const userId = req.admin.id;
             try {
                  let price
             // if(!prices ) {
@@ -890,6 +995,13 @@ async createEvent(req: Request, res: Response) {
             }
         }
 
+/**
+ * Notify users who purchased streampasses about an event status change.
+ * - Sends push notifications to users who opted in for app notifications and
+ *   emails to users who opted in for email notifications for start/end events.
+ * @param eventDoc Event document or plain object containing event details
+ * @param status New event status (`EventStatus.LIVE` or `EventStatus.PAST`)
+ */
 async notifyEventStatus(eventDoc: any, status: EventStatus) {
     // Find all users with a streampass for this event
     const streampasses = await Streampass.find({ event: eventDoc._id }).populate('user');

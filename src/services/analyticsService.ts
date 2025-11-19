@@ -1,11 +1,19 @@
 import mongoose from "mongoose";
-import Event, { EventStatus, AdminStatus } from "../models/Event";
-import User, { UserStatus } from "../models/User";
-import Transactions, { TransactionStatus } from "../models/Transactions";
-import Streampass from "../models/Streampass";
-import Views from "../models/Views";
-import Feedback from "../models/Feedback";
+import { EventStatus, AdminStatus } from "../models/Event";
+import { UserStatus } from "../models/User";
+import { TransactionStatus } from "../models/Transactions";
 
+/**
+ * Build an aggregation pipeline to compute analytics for a single event.
+ * - Includes earnings (filtered by month/currency), viewer counts (live/replay/peak),
+ *   ratings summary and recent feedback comments, chat message count, and transaction details.
+ * - This function returns a MongoDB aggregation pipeline (array) that should be executed
+ *   against the `events` collection to compute the analytics server-side.
+ * @param eventId ID of the event to analyze
+ * @param selectedMonth Optional string in `YYYY-MM` format to filter transactions/earnings by month
+ * @param selectedCurrency Optional currency code to restrict revenue calculations
+ * @returns Aggregation pipeline array to be used with `Event.aggregate(pipeline)`
+ */
 export async function getEventAnalytics(
   eventId: string,
   selectedMonth?: string,
@@ -245,6 +253,14 @@ export async function getEventAnalytics(
 }
 
 // New analytics functions for admin dashboard
+/**
+ * Build an aggregation pipeline for a high-level platform overview used in the admin dashboard.
+ * - Computes user and event statistics within a given timeframe (e.g., last 7/30/90 days, 1 year).
+ * - The returned pipeline is intended to be run against relevant collections (users/events) to
+ *   compute totals, verified/active user counts, approved/live event counts, etc.
+ * @param timeframe Time window to analyze. Accepted values: '7d', '30d', '90d', '1y'. Defaults to '30d'.
+ * @returns Aggregation pipeline array to use with collections like `User.aggregate` or `Event.aggregate`.
+ */
 export async function getPlatformOverview(timeframe: string = '30d') {
   const now = new Date();
   let startDate: Date;
@@ -316,6 +332,16 @@ export async function getPlatformOverview(timeframe: string = '30d') {
   return pipeline;
 }
 
+/**
+ * Build a revenue aggregation pipeline across transactions between two dates.
+ * - Groups transactions by date and currency, computes daily revenue, counts and averages,
+ *   then reshapes the result so each date contains currency-specific revenue breakdowns.
+ * - Only includes transactions with `status: SUCCESSFUL`.
+ * @param startDate Inclusive start date for the range
+ * @param endDate Inclusive end date for the range
+ * @param currency Optional currency code to filter results
+ * @returns Aggregation pipeline array to run against the `transactions` collection.
+ */
 export async function getRevenueAnalytics(
   startDate: Date,
   endDate: Date,
@@ -364,6 +390,14 @@ export async function getRevenueAnalytics(
   return pipeline;
 }
 
+/**
+ * Build an aggregation pipeline to compute user engagement metrics between two dates.
+ * - Produces time-series for view types (live/replay) and streampass sales (including gifts),
+ *   grouped per day. Returned pipeline uses `$facet` to compute multiple series in one aggregation.
+ * @param startDate Inclusive start date for the range
+ * @param endDate Inclusive end date for the range
+ * @returns Aggregation pipeline array to execute against `views`/`streampass` or combined via `$facet`.
+ */
 export async function getUserEngagementAnalytics(
   startDate: Date,
   endDate: Date
@@ -424,6 +458,15 @@ export async function getUserEngagementAnalytics(
   return pipeline;
 }
 
+/**
+ * Build an aggregation pipeline to find top-performing content (events) over a date range.
+ * - Joins transactions, views and feedback, computes revenue, view counts and average ratings,
+ *   and calculates a composite `performanceScore` to rank content.
+ * @param startDate Inclusive start date for the analysis window
+ * @param endDate Inclusive end date for the analysis window
+ * @param limit Maximum number of content items to return (default 10)
+ * @returns Aggregation pipeline array to execute against the `events` collection.
+ */
 export async function getTopPerformingContent(
   startDate: Date,
   endDate: Date,

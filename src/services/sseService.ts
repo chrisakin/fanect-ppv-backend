@@ -3,6 +3,12 @@ import { Request, Response } from 'express';
 
 const sseClients: { [eventId: string]: Response[] } = {};
 
+/**
+ * Handles a new SSE (Server-Sent Events) connection for a specific event.
+ * Adds the client to the list for the event and sets up headers for SSE.
+ * @param {Request} req - Express request object (expects req.params.eventId).
+ * @param {Response} res - Express response object.
+ */
 export function eventStatusSSE(req: Request, res: Response) {
     const { eventId } = req.params;
 
@@ -28,6 +34,11 @@ export function eventStatusSSE(req: Request, res: Response) {
 }
 
 // Call this function when event status changes
+/**
+ * Broadcasts an event status update to all connected SSE clients for a given event.
+ * @param {string} eventId - The event ID to broadcast to.
+ * @param {{message: string, status: string}} data - The status data to send.
+ */
 export function broadcastEventStatus(eventId: string, data: {message: string, status: string}) {
     if (sseClients[eventId]) {
         sseClients[eventId].forEach(res => {
