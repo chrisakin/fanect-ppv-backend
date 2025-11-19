@@ -131,7 +131,7 @@ export async function createChatToken(roomIdentifier: string, userId: string, us
     return result;
   }
 
-export async function getSavedBroadCastUrl(channelArn: string) {
+export async function getSavedBroadCastUrlOld(channelArn: string) {
 /**
  * Retrieves the playback URL for the most recent saved broadcast in S3 for a channel.
  * @param {string} channelArn - The ARN of the channel.
