@@ -839,7 +839,7 @@ async getSingleEventMetrics(req: Request, res: Response) {
  * @param res Express response with created event
  */
 async createEvent(req: Request, res: Response) {
-  const { name, date, time, description, prices, haveBroadcastRoom, broadcastSoftware, scheduledTestDate } = req.body;
+  const { name, date, time, description, prices, haveBroadcastRoom, broadcastSoftware, scheduledTestDate, streamingDeviceType } = req.body;
   const userId = req.admin.id;
         let price
         if(!prices ) {
@@ -916,7 +916,7 @@ async createEvent(req: Request, res: Response) {
           */
          async updateEvent(req: Request, res: Response) {
            const { id } = req.params;
-           const { name, date, time, description, prices, haveBroadcastRoom, broadcastSoftware, scheduledTestDate } = req.body;
+           const { name, date, time, description, prices, haveBroadcastRoom, broadcastSoftware, scheduledTestDate, streamingDeviceType } = req.body;
            const userId = req.admin.id;
             try {
                  let price
