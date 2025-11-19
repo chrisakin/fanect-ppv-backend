@@ -277,6 +277,7 @@ class EventController {
                if (session === 'stream-start') {
                     event.status = EventStatus.LIVE;
                     event.startedEventBy = req.admin.id
+                    event.eventStartedDate = new Date()
                     await event.save();
                     broadcastEventStatus(id, {message: 'Event has started', status: EventStatus.LIVE});
                      await this.notifyEventStatus(event, EventStatus.LIVE);
@@ -289,14 +290,15 @@ class EventController {
                 } else if (session === 'stream-end') {
                     event.status = EventStatus.PAST;
                     event.endedEventBy = req.admin.id
-                   if(event.canWatchSavedStream) {
-                     const url = await getSavedBroadCastUrl(event.ivsChannelArn)
+                    event.eventEndedDate = new Date()
+                   //if(event.canWatchSavedStream) {
+                     const url = await getSavedBroadCastUrl(event.ivsChannelArn, event.eventStartedDate as Date)
                      if(!url) {
                         return res.status(404).json({ message: 'Broadcast url has not been saved or the broadcast has not ended. Retry again after 10 mins.' });
                     }
                     console.log(url);
                     event.ivsSavedBroadcastUrl = url;
-                   }
+                   //}
                     await event.save();
                     broadcastEventStatus(id, {message: 'Event has ended', status: EventStatus.PAST});
                     await this.notifyEventStatus(event, EventStatus.PAST);
@@ -887,6 +889,7 @@ async createEvent(req: Request, res: Response) {
                 broadcastSoftware,
                 scheduledTestDate,
                 createdBy: userId,
+                streamingDeviceType,
                 createdByModel: 'Admin'
             });
 
@@ -971,6 +974,7 @@ async createEvent(req: Request, res: Response) {
                 event.broadcastSoftware = broadcastSoftware || event.broadcastSoftware
                 event.scheduledTestDate = scheduledTestDate || event.scheduledTestDate
                 event.updatedBy = userId
+                event.streamingDeviceType = streamingDeviceType || event.streamingDeviceType
     
                 await event.save();
                 if(bannerKey) {
@@ -1031,7 +1035,7 @@ async notifyEventStatus(eventDoc: any, status: EventStatus) {
                 user.email,
                 'Live Stream Started',
                 'eventLiveStreamBegins', // your email template
-                { eventName, eventDate, eventTime, userName: user.firstName, year: new Date().getFullYear() }
+                { eventName, eventDate, eventTime, userName: user.firstName, year: new Date().getFullYear(), eventLink: `${process.env.FRONTEND_URL}/dashboard/tickets/watch-event/live/${eventDoc._id}`, mobileEventLink: `${process.env.FRONTEND_URL}/deeplink/?user_id=${user._id}&eventId=${eventDoc._id}` }
             );
         }
     }

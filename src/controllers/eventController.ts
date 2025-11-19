@@ -23,7 +23,7 @@ class EventController {
      * @param res Express response with created event
      */
     async createEvent(req: Request, res: Response) {
-        const { name, date, time, description, prices, haveBroadcastRoom, broadcastSoftware, scheduledTestDate } = req.body;
+        const { name, date, time, description, prices, haveBroadcastRoom, broadcastSoftware, scheduledTestDate, timezone, streamingDeviceType } = req.body;
         const userId = req.user.id;
         let price
         if(!prices ) {
@@ -35,7 +35,9 @@ class EventController {
         price = prices
         }
         try {
+          console.log(date, time)
              const eventDateTime = new Date(`${date}T${time}`);
+             console.log(eventDateTime)
             if (isNaN(eventDateTime.getTime()) || eventDateTime <= new Date()) {
                 return res.status(400).json({ message: 'Event date and time must be in the future' });
             }
@@ -73,7 +75,9 @@ class EventController {
                 broadcastSoftware,
                 scheduledTestDate,
                 createdBy: userId,
-                createdByModel: 'User'
+                createdByModel: 'User',
+                streamingDeviceType,
+                timezone
             });
 
             await event.save();
@@ -97,25 +101,85 @@ class EventController {
      * @param res Express response with paginated events
      */
     async getEvents(req: Request, res: Response) {
-        try {
-            const page = Number(req.query.page) || 1;
-            const limit = Number(req.query.limit) || 10;
-
-            const result = await paginateFind(
-                Event,
-                { createdBy: req.user.id },
-                { page, limit },
-                { __v: 0, createdBy: 0, createdAt: 0, updatedAt: 0, published: 0, status: 0 },
-                {createdAt: -1}
-            );
-
-            res.status(200).json({ message: 'Events gotten successfully', ...result });
-        } catch (error) {
-            console.error(error);
-            res.status(500).json({ message: 'Something went wrong. Please try again later' });
-        }
+  try {
+    const  userId  = req.user.id
+     const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 10;
+     const search = req.query.search as string | undefined;
+    const pipeline: any = []
+    if (search && search.trim() !== '') {
+      pipeline.push({
+        $match: {
+          $or: [
+            { name: { $regex: search, $options: 'i' } },
+            { description: { $regex: search, $options: 'i' } },
+          ],
+        },
+      });
     }
-
+    pipeline.push(
+      {
+        $match: {
+          createdBy: new Types.ObjectId(userId),
+          isDeleted: { $ne: true }
+        }
+      },
+          {
+  $addFields: {
+    eventDateTime: {
+      $dateFromString: {
+        dateString: {
+          $concat: [
+            { $dateToString: { format: '%Y-%m-%d', date: '$date' } },
+            "T",
+            {
+              $cond: [
+                { $eq: [{ $type: "$time" }, "string"] },
+                "$time",
+                { $dateToString: { format: "%H:%M", date: "$time" } },
+              ],
+            },
+          ],
+        },
+        timezone: { $ifNull: ["$timezone", "UTC"] } 
+      }
+    }
+  }
+},
+      {
+        $sort: { createdAt: -1 }
+      },
+      {
+        $project: {
+          __v: 0,
+          createdBy: 0,
+          createdAt: 0,
+          updatedAt: 0,
+          published: 0,
+          status: 0
+        }
+      },
+    )
+    console.log(pipeline);
+    const result = await paginateAggregate(Event, pipeline, { page, limit });
+    console.log(result)
+   if(userId) {
+     CreateActivity({
+    user: userId as unknown as mongoose.Types.ObjectId,
+    eventData: `User requested created events`,
+    component: 'event',
+    activityType: 'createdevent'
+    });
+   }
+    res.status(200).json({
+      message: 'Events gotten successfully',
+      ...result,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Something went wrong. Please try again later' });
+  }
+}
 
 /**
  * Get upcoming public events (paginated) that the user can see.
@@ -134,29 +198,29 @@ async getUpcomingEvents(req: Request, res: Response) {
     const userId = req.user?.id as string; 
     const userCountry = req.country || 'US';
     const userCurrency = countryToCurrency[userCountry] || Currency.USD;
-
     const pipeline: any[] = [
       {
-        $addFields: {
-          eventDateTime: {
-            $dateFromString: {
-              dateString: {
-                $concat: [
-                  { $dateToString: { format: '%Y-%m-%d', date: '$date' } },
-                  'T',
-                  {
-                    $cond: [
-                      { $eq: [{ $type: '$time' }, 'string'] },
-                      '$time',
-                      { $dateToString: { format: '%H:%M', date: '$time' } },
-                    ],
-                  },
-                ],
-              },
+  $addFields: {
+    eventDateTime: {
+      $dateFromString: {
+        dateString: {
+          $concat: [
+            { $dateToString: { format: '%Y-%m-%d', date: '$date' } },
+            "T",
+            {
+              $cond: [
+                { $eq: [{ $type: "$time" }, "string"] },
+                "$time",
+                { $dateToString: { format: "%H:%M", date: "$time" } },
+              ],
             },
-          },
+          ],
         },
-      },
+        timezone: { $ifNull: ["$timezone", "UTC"] } 
+      }
+    }
+  }
+},
       {
         $match: {
            eventDateTime: { $gt: yesterday },
@@ -297,27 +361,28 @@ async getUpcomingEvents(req: Request, res: Response) {
     const userCurrency = countryToCurrency[userCountry] || Currency.USD;
 
     const pipeline: any[] = [
-      {
-        $addFields: {
-          eventDateTime: {
-            $dateFromString: {
-              dateString: {
-                $concat: [
-                  { $dateToString: { format: '%Y-%m-%d', date: '$date' } },
-                  'T',
-                  {
-                    $cond: [
-                      { $eq: [{ $type: '$time' }, 'string'] },
-                      '$time',
-                      { $dateToString: { format: '%H:%M', date: '$time' } },
-                    ],
-                  },
-                ],
-              },
+     {
+  $addFields: {
+    eventDateTime: {
+      $dateFromString: {
+        dateString: {
+          $concat: [
+            { $dateToString: { format: '%Y-%m-%d', date: '$date' } },
+            "T",
+            {
+              $cond: [
+                { $eq: [{ $type: "$time" }, "string"] },
+                "$time",
+                { $dateToString: { format: "%H:%M", date: "$time" } },
+              ],
             },
-          },
+          ],
         },
-      },
+        timezone: { $ifNull: ["$timezone", "UTC"] }  // 👈 tell Mongo this datetime belongs to event’s tz
+      }
+    }
+  }
+},
       {
         $match: {
         //   eventDateTime: { $gt: now },
@@ -341,7 +406,7 @@ async getUpcomingEvents(req: Request, res: Response) {
                 }
               }
             },
-            { $limit: 1 } // optimize
+            { $limit: 1 }
           ],
           as: 'userStreamPass'
         }
@@ -369,7 +434,7 @@ async getUpcomingEvents(req: Request, res: Response) {
         {
           $in: [userCountry, { $map: { input: '$locationData', as: 'loc', in: '$$loc.location' } }]
         },
-        true // if locationData is empty, allow the event
+        true
       ]
     }
   }
@@ -379,7 +444,6 @@ async getUpcomingEvents(req: Request, res: Response) {
     locationMatch: true
   }
 }
-
     ];
 
     if (search && search.trim() !== '') {
@@ -423,12 +487,14 @@ async getUpcomingEvents(req: Request, res: Response) {
     );
 
     const result = await paginateAggregate(Event, pipeline, { page, limit });
+    if(userId) {
     CreateActivity({
     user: userId as unknown as mongoose.Types.ObjectId,
     eventData: `User requested live events`,
     component: 'event',
     activityType: 'liveevent'
     });
+  }
     res.status(200).json({
       message: 'Events gotten successfully',
       ...result,
@@ -455,27 +521,28 @@ async getUpcomingEvents(req: Request, res: Response) {
     const userCurrency = countryToCurrency[userCountry] || Currency.USD;
 
     const pipeline: any[] = [
-      {
-        $addFields: {
-          eventDateTime: {
-            $dateFromString: {
-              dateString: {
-                $concat: [
-                  { $dateToString: { format: '%Y-%m-%d', date: '$date' } },
-                  'T',
-                  {
-                    $cond: [
-                      { $eq: [{ $type: '$time' }, 'string'] },
-                      '$time',
-                      { $dateToString: { format: '%H:%M', date: '$time' } },
-                    ],
-                  },
-                ],
-              },
+     {
+  $addFields: {
+    eventDateTime: {
+      $dateFromString: {
+        dateString: {
+          $concat: [
+            { $dateToString: { format: '%Y-%m-%d', date: '$date' } },
+            "T",
+            {
+              $cond: [
+                { $eq: [{ $type: "$time" }, "string"] },
+                "$time",
+                { $dateToString: { format: "%H:%M", date: "$time" } },
+              ],
             },
-          },
+          ],
         },
-      },
+        timezone: { $ifNull: ["$timezone", "UTC"] }   // 👈 tell Mongo this datetime belongs to event’s tz
+      }
+    }
+  }
+},
       {
         $match: {
         //   eventDateTime: { $gt: now },
@@ -571,7 +638,7 @@ async getUpcomingEvents(req: Request, res: Response) {
      */
     async getEventById(req: Request, res: Response) {
   const { id } = req.params;
-  const userId = req.user?.id as string; // from auth middleware
+  const userId = req.user?.id as string;
   const userCountry = req.country || 'US';
   const userCurrency = countryToCurrency[userCountry] || Currency.USD;
   if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -582,6 +649,28 @@ async getUpcomingEvents(req: Request, res: Response) {
     // Aggregate event and check if user has StreamPass
     const results = await Event.aggregate([
       { $match: { _id: new mongoose.Types.ObjectId(id) } },
+            {
+  $addFields: {
+    eventDateTime: {
+      $dateFromString: {
+        dateString: {
+          $concat: [
+            { $dateToString: { format: '%Y-%m-%d', date: '$date' } },
+            "T",
+            {
+              $cond: [
+                { $eq: [{ $type: "$time" }, "string"] },
+                "$time",
+                { $dateToString: { format: "%H:%M", date: "$time" } },
+              ],
+            },
+          ],
+        },
+        timezone: { $ifNull: ["$timezone", "UTC"] } 
+      }
+    }
+  }
+},
       {
         $lookup: {
           from: 'streampasses',
@@ -625,7 +714,7 @@ async getUpcomingEvents(req: Request, res: Response) {
         {
           $in: [userCountry, { $map: { input: '$locationData', as: 'loc', in: '$$loc.location' } }]
         },
-        true // If locationData is empty, allow the event
+        true
       ]
     }
   }
@@ -697,7 +786,7 @@ async getUpcomingEvents(req: Request, res: Response) {
      */
     async updateEvent(req: Request, res: Response) {
         const { id } = req.params;
-        const { name, date, time, description, prices, haveBroadcastRoom, broadcastSoftware, scheduledTestDate } = req.body;
+        const { name, date, time, description, prices, haveBroadcastRoom, broadcastSoftware, scheduledTestDate, timezone, streamingDeviceType } = req.body;
         const userId = req.user.id;
         try {
              let price
@@ -754,7 +843,9 @@ async getUpcomingEvents(req: Request, res: Response) {
             event.haveBroadcastRoom = haveBroadcastRoom || event.haveBroadcastRoom
             event.broadcastSoftware = broadcastSoftware || event.broadcastSoftware
             event.scheduledTestDate = scheduledTestDate || event.scheduledTestDate
+            event.timezone = date != event.date || time != event.time ? timezone : event.timezone
             event.updatedBy = userId
+            event.streamingDeviceType = streamingDeviceType || event.streamingDeviceType
 
             await event.save();
             if(bannerKey) {
@@ -852,7 +943,7 @@ async getUpcomingEvents(req: Request, res: Response) {
     // Check if there's an active session within the threshold
     const activeThreshold = new Date(Date.now() - 30 * 1000); // 30 seconds ago
     if (streampass.inSession && streampass.lastActive && streampass.lastActive >= activeThreshold) {
-      return res.status(409).json({ message: 'You are already in an active session for this streampass' });
+      return res.status(409).json({ message: 'You’re still logged in from another session. This may happen if you just refreshed the page. We’ll automatically reconnect your stream in 15 seconds.' });
     }
 
     const event = await Event.findById(eventId);
@@ -879,7 +970,7 @@ async getUpcomingEvents(req: Request, res: Response) {
     component: 'event',
     activityType: 'streamkey'
     });
-    res.json({ streamKey: streamKey, chatToken: chatToken, playbackUrl: event.ivsPlaybackUrl, chatRoomArn: event.ivsChatRoomArn, streampassId: streampass.id });
+    res.json({ streamKey: streamKey, chatToken: chatToken, playbackUrl: event.ivsPlaybackUrl, chatRoomArn: event.ivsChatRoomArn, streampassId: streampass.id, eventName: event.name, eventDescription: event.description, streamingDeviceType: event.streamingDeviceType });
 }
 
 
@@ -1038,8 +1129,6 @@ async ivsWebhook(req: Request, res: Response) {
       const playbackUrl = `https://YOUR_BUCKET_NAME.s3.amazonaws.com/${prefix}index.m3u8`;
 
       console.log(`🎬 New recording ready: ${playbackUrl}`, channelArn);
-
-      // TODO: Save playbackUrl to your database here
     }
   }
 
@@ -1080,7 +1169,7 @@ async notifyEventStatus(eventDoc: any, status: EventStatus) {
                 user.email,
                 'Live Stream Started',
                 'eventLiveStreamBegins', // your email template
-                { eventName, eventDate, eventTime, userName: user.firstName, year: new Date().getFullYear() }
+                { eventName, eventDate, eventTime, userName: user.firstName, year: new Date().getFullYear(), eventLink: `${process.env.FRONTEND_URL}/dashboard/tickets/watch-event/live/${eventDoc._id}`, mobileEventLink: `${process.env.FRONTEND_URL}/deeplink/?user_id=${user._id}&eventId=${eventDoc._id}` }
             );
         }
     }

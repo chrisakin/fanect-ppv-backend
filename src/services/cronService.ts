@@ -37,7 +37,7 @@ class CronService {
       timezone: 'UTC',
     };
     const task = cron.schedule(
-      '*/5 * * * *',
+      '*/20 * * * * *',
       async () => {
         try {
           console.log('🧹 Starting scheduled session cleanup...');
@@ -53,7 +53,7 @@ class CronService {
     this.jobs.set(jobName, task);
     task.start();
 
-    console.log('🚀 Session cleanup cron job started (runs every 5 minutes)');
+    console.log('🚀 Session cleanup cron job started (runs every 20 seconds)');
   }
 
   /**

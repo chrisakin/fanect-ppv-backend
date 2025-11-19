@@ -244,6 +244,7 @@ class StreampassController {
   async createSingleSession(req: Request, res: Response) {
    const { streampassId, startSession, clientSessionToken } = req.body;
     const userId = req.user.id;
+    console.log(userId)
    try {
      const streampass = await Streampass.findById(streampassId);
      if (!streampass) {
@@ -268,7 +269,8 @@ class StreampassController {
 
        if (existingActiveSession && existingActiveSession.id.toString() !== streampassId) {
          return res.status(409).json({ 
-           message: 'You are already streaming this event on another device. Please close the other session first.' 
+           message: `You’re still logged in from another session.
+          This may happen if you just refreshed the page. We’ll automatically reconnect your stream in 15 seconds.` 
          });
        }
 
@@ -289,9 +291,9 @@ class StreampassController {
          return res.status(400).json({ message: 'Client session token is required to end session' });
        }
 
-       if (streampass.sessionToken !== clientSessionToken) {
-         return res.status(403).json({ message: 'Invalid session token' });
-       }
+      //  if (streampass.sessionToken !== clientSessionToken) {
+      //    return res.status(403).json({ message: 'Invalid session token' });
+      //  }
 
        streampass.inSession = false;
        streampass.sessionToken = undefined;
@@ -651,9 +653,12 @@ class StreampassController {
             }
              const verifyFriends = friends && friends.length > 0 ? friends.map((f: { email: string }) => f.email.toLowerCase()) : [];
             if(verifyFriends.length > 0) {
-                const users = await Streampass.find({ email: { $in: verifyFriends } }).select('_id email').lean();
+                const users = await Streampass.find({ email: { $in: verifyFriends }, event: eventId }).select('_id email').lean();
                 if(users.length > 0) {
-                    return res.status(404).json({ message: `Some friends already have streampass for this event: ${users.map(u => u.email).join(', ')}` });
+                   const uniqueEmails = [...new Set(users.map(u => u.email))];
+                    return res.status(409).json({
+                      message: `Some friends already have streampass for this event: ${uniqueEmails.join(', ')}`
+                    });
                 }
             }
              const response = await flutterwaveInitialization(event, currency, user, friends, priceObj)
@@ -695,7 +700,7 @@ class StreampassController {
         // Check if there's an active session within the threshold
         const activeThreshold = new Date(Date.now() - 30 * 1000); // 30 seconds ago
         if (streampass.inSession && streampass.lastActive && streampass.lastActive >= activeThreshold) {
-            return res.status(409).json({ message: 'You are already in an active session for this streampass' });
+            return res.status(409).json({ message: 'You’re still logged in from another session. This may happen if you just refreshed the page. We’ll automatically reconnect your stream in 15 seconds.' });
         }
         
         CreateActivity({

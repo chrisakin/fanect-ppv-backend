@@ -370,7 +370,12 @@ class AnalyticsController {
     {
       $project: {
         topEvents: 1,
-        totalViews: { $arrayElemAt: ['$totalViews.totalViews', 0] }
+        totalViews: { 
+          $ifNull: [
+      { $arrayElemAt: ['$totalViews.totalViews', 0] },
+      0
+    ]
+         }
       }
     }
   ]);

@@ -129,6 +129,10 @@ export interface IEvent extends Document {
     ivsIngestStreamKey: string | undefined;
     isDeleted: boolean;
     deletedAt: Date | undefined;
+    timezone: string;
+    streamingDeviceType: StreamingDeviceType;
+    eventStartedDate: Date | undefined;
+    eventEndedDate: Date | undefined;
 }
 
 /**
@@ -138,6 +142,11 @@ export enum EventStatus {
     UPCOMING = 'Upcoming',
     LIVE = 'Live',
     PAST = 'Past'
+}
+
+export enum StreamingDeviceType {
+    MOBILE = 'Mobile',
+    NOTMOBILE = 'Not Mobile',
 }
 
 /**
@@ -173,7 +182,6 @@ const EventSchema: Schema = new Schema(
         },
         deletedBy: {
         type: mongoose.Schema.Types.ObjectId,
-        required: true,
         refPath: 'createdByModel'
         },
         createdByModel: {
@@ -189,18 +197,22 @@ const EventSchema: Schema = new Schema(
         ivsChannelArn: { type: String },
         ivsPlaybackUrl: { type: String },
         ivsChatRoomArn: { type: String },
+        timezone: {type: String },
         ivsIngestEndpoint: { type: String },
         ivsSavedBroadcastUrl: { type: String },
         ivsIngestStreamKey: { type: String },
         rejectionReason: { type: String },
         isDeleted: { type: Boolean, default: false },
         deletedAt: { type: Date },
+        eventStartedDate: { type: Date },
+        eventEndedDate: { type: Date },
         updatedBy: { type: mongoose.Types.ObjectId, refPath: 'createdByModel'},
         publishedBy: { type: mongoose.Types.ObjectId, ref: 'Admin' },
         unpublishedBy: { type: mongoose.Types.ObjectId, ref: 'Admin' },
         rejectedBy: { type: mongoose.Types.ObjectId, ref: 'Admin' },
         startedEventBy: { type: mongoose.Types.ObjectId, ref: 'Admin' },
         endedEventBy: { type: mongoose.Types.ObjectId, ref: 'Admin' },
+        streamingDeviceType: { type: String, enum: Object.values(StreamingDeviceType), default: StreamingDeviceType.NOTMOBILE }
     },
     { timestamps: true }
 );
